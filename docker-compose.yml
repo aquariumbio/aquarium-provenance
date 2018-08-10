@@ -13,6 +13,6 @@ services:
     build:
       context: .
       target: basebuilder
-    entrypoint: ['python3', 'trace.py', '-p']
+    entrypoint: ['python3', 'trace.py']
     volumes:
       - ./src:/app/

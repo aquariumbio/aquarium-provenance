@@ -1,3 +1,3 @@
 #!/bin/bash
 docker-compose build
-docker-compose run -T --rm trace $1
+docker-compose run -T --rm trace $@
