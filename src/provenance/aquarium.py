@@ -1,3 +1,15 @@
+"""
+Aquarium provenance classes derived using pydent models.
+See TraceFactory.create_from to load.
+
+Loosely based on provenance ontology, which includes activities, agents,
+and entities.
+
+Note that I punted on properly modeling which kinds of entities in Aquarium.
+An Item has a sample and object_type;
+a collection has no sample but has an object_type; and
+a part of a collection has a sample but no object_type.
+"""
 import abc
 import json
 import sys
@@ -182,6 +194,10 @@ class OperationActivity(AttributesMixin):
 
 
 class OperationArgument(abc.ABC):
+    """
+    Models an argument to an operation, which can be either a 
+    (though use it to capture output during trace conversion)
+    """
 
     @abc.abstractmethod
     def __init__(self, *, name, field_value_id):
@@ -416,8 +432,8 @@ class TraceFactory:
                         upload_matrix = get_upload_matrix(association.object)
                     elif is_routing_matrix(association):
                         routing_matrix = get_routing_matrix(association.object)
-                    else:
-                        item_entity.add_attribute(association.object)
+                    # else:
+                    item_entity.add_attribute(association.object)
 
         self._create_parts(entity=item_entity,
                            generator=generator,
