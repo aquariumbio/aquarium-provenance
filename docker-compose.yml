@@ -1,0 +1,18 @@
+version: "3.6"
+services:
+  test:
+    build:
+      context: .
+      target: basebuilder
+    command: ["pytest"]
+    volumes:
+      - ./src:/app/
+      - ./test:app/test
+  
+  trace:
+    build:
+      context: .
+      target: basebuilder
+    entrypoint: ['python3', 'trace.py', '-p']
+    volumes:
+      - ./src:/app/

@@ -1,0 +1,146 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "UW BIOFAB Provenance Schema",
+  "additionalProperties": false,
+  "definitions": {
+    "attributes": { "type": "object" },
+    "file_entity": {
+      "additionalProperties": false,
+      "properties": {
+        "file_id": { "$ref": "#definitions/identifier" },
+        "filename": { "type": "string" },
+        "generated_by": { "$ref": "#definitions/identifier" },
+        "sources": { "$ref": "#definitions/source_array" },
+        "size": { "type": "integer" }
+      },
+      "required": ["file_id", "filename", "generated_by", "size"],
+      "type": "string"
+    },
+    "identifier": {
+      "type": "string",
+      "pattern": "^[0-9]+$"
+    },
+    "item_identifier": {
+      "type": "string",
+      "pattern": "^[0-9]+(/[A-Z]?[0-9]+)?$"
+    },
+    "item_entity": {
+      "additionalProperties": false,
+      "properties": {
+        "item_id": { "$ref": "#definitions/item_identifier" },
+        "type": {
+          "type": "string",
+          "enum": ["item", "collection", "part"]
+        },
+        "generated_by": { "$ref": "#definitions/identifier" },
+        "attributes": { "$ref": "#definitions/attributes" },
+        "part_of": { "$ref": "#definitions/identifier" },
+        "sample": { "$ref": "#definitions/sample" },
+        "object_type": { "$ref": "#definitions/object_type" },
+        "sources": { "$ref": "#definitions/source_array" },
+      },
+      "required": ["item_id", "type", "generated_by"]
+    },
+    "object_type": {
+      "additionalProperties": false,
+      "properties": {
+        "object_type_id": { "$ref": "#definitions/identifier" },
+        "object_type_name": { "type": "string" }
+      },
+      "required": ["object_type_id", "object_type_name"],
+      "type": "object"
+    },
+    "operation_activity": {
+      "additionalProperties": false,
+      "description": "An object describing an operation",
+      "properties": {
+        "operation_id": { "$ref": "#definitions/identifier" },
+        "operation_type": { "$ref": "#definitions/operation_type" },
+        "inputs": { "$ref": "#definitions/operation_input_array" },
+        "attributes": { "$ref": "#definitions/attributes" }
+      },
+      "required": ["operation_id", "operation_type", "inputs"],
+      "type": "object"
+    },
+    "operation_input": {
+      "additionalProperties": false,
+      "properties": {
+        "field_value_id": { "$ref": "#definitions/identifier" },
+        "name": { "type": "string" },
+        "item_id": { "$ref": "#definitions/item_identifier" },
+        "value": { "type": "string" }
+      },
+      "required": ["field_value_id", "name"],
+      "type": "object"
+    },
+    "operation_input_array": {
+      "items": { "$ref": "#definitions/operation_input" },
+      "minItems": 1,
+      "type": "array"
+    },
+    "operation_type": {
+      "additionalProperties": false,
+      "properties": {
+        "operation_type_id": { "$ref": "#definitions/identifier" },
+        "category": { "type": "string" },
+        "name": { "type": "string" }
+      },
+      "required": ["operation_type_id", "category", "name"],
+      "type": "object"
+    },
+    "sample": {
+      "additionalProperties": false,
+      "description": "An object describing an Aquarium sample",
+      "properties": {
+        "sample_id": { "$ref": "#definitions/identifier" },
+        "sample_name": { "type": "string" }
+      },
+      "required": ["sample_id", "sample_name"],
+      "type": "object"
+    },
+    "source_array": {
+        "items": { "$ref": "#definitions/item_identifier" },
+        "minItems": 1,
+        "type": "array"
+    }
+  },
+  "properties": {
+    "plan_id": { "$ref": "#definitions/identifier" },
+    "plan_name": { "type": "string" },
+    "attributes": { "$ref": "#definitions/attributes" },
+    "operations": {
+      "description": "Aquarium operations of plan",
+      "items": {
+        "$ref": "#definitions/operation_activity"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "items": {
+      "description": "Aquarium items in plan",
+      "items": {
+        "$ref": "#definitions/item_entity"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "files": {
+      "description": "Aquarium data files in plan",
+      "items": {
+        "$ref": "#definitions/file_entity"
+      },
+      "minItems": 1,
+      "type": "array"
+    }
+  },
+  "required": [
+    "plan_id",
+    "plan_name",
+    "challenge_problem",
+    "attributes",
+    "operations",
+    "items",
+    "files"
+  ],
+  "type": "object"
+}
