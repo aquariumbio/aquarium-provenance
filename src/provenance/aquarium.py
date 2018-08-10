@@ -295,23 +295,23 @@ class PlanTrace(AttributesMixin):
     def add_file(self, file_entity):
         self.files[file_entity.file_id] = file_entity
 
-    def add_item(self, item):
-        self.items[str(item.item_id)] = item
+    def add_item(self, item_entity):
+        self.items[item_entity.item_id] = item_entity
 
     def add_operation(self, operation):
         self.operations[operation.operation_id] = operation
 
     def has_item(self, item_id):
-        return bool(item_id) and item_id in self.items
-
-    def get_item(self, item_id):
-        return self.items[item_id]
+        return bool(item_id) and str(item_id) in self.items
 
     def has_file(self, file_id):
-        return bool(file_id) and file_id in self.files
+        return bool(file_id) and str(file_id) in self.files
+
+    def get_item(self, item_id):
+        return self.items[str(item_id)]
 
     def get_file(self, file_id):
-        return self.files[file_id]
+        return self.files[str(file_id)]
 
     def apply(self, visitor):
         visitor.visit_trace(self)
@@ -432,8 +432,8 @@ class TraceFactory:
                         upload_matrix = get_upload_matrix(association.object)
                     elif is_routing_matrix(association):
                         routing_matrix = get_routing_matrix(association.object)
-                    # else:
-                    item_entity.add_attribute(association.object)
+                    else:
+                        item_entity.add_attribute(association.object)
 
         self._create_parts(entity=item_entity,
                            generator=generator,
@@ -488,13 +488,14 @@ class TraceFactory:
                             entry = routing_matrix[i][j]
                             if entry:
                                 source_id = entry['source']
-                                if self.trace.has_item(source_id):
+                                if not self.trace.has_item(source_id):
+                                    print("no item for {}".format(source_id),
+                                          file=sys.stderr)
+                                else:
                                     item_entity = self.trace.get_item(
                                         source_id)
                                     part_entity.add_source(item_entity)
-                                else:
-                                    print("no item for {}".format(source_id),
-                                          file=sys.stderr)
+                                    
                                 if 'attributes' in entry:
                                     attributes = entry['attributes']
                                     part_entity.add_attribute(attributes)
@@ -505,13 +506,14 @@ class TraceFactory:
         If the entity is not currently in the trace, creates it.
         """
         if self.trace.has_file(upload_id):
-            return self.trace.get_file(upload_id)
-
-        # file doesn't exist,
-        file_entity = FileEntity(
-            upload=self._get_upload(upload_id)
-        )
-        self._add_file_entity(entity=file_entity, source=source)
+            if source:
+                file_entity = self.trace.get_file(upload_id)
+                file_entity.add_source(source)
+        else:
+            file_entity = FileEntity(
+                upload=self._get_upload(upload_id)
+            )
+            self._add_file_entity(entity=file_entity, source=source)
 
     def _get_upload(self, upload_id):
         return self.session.Upload.where(
