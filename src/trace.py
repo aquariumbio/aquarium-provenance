@@ -1,12 +1,16 @@
 import abc
 import argparse
+import boto3
 import json
+import os
+from botocore.client import Config
 from pydent import AqSession
 from provenance.aquarium import (
     TraceFactory,
     file_generator_patch,
     tag_measurement_operations)
 from resources import resources
+from upload.aquarium_trace_upload import UploadManager
 
 
 def add_yg_op_attributes(trace, ):
@@ -128,14 +132,23 @@ def main():
                         help="the ID of the plan",
                         required=True)
     parser.add_argument("-o", "--output",
-                        help="the output file")
+                        help="file for dumping provenance")
     parser.add_argument("-v", "--validate",
                         action="store_true",
                         help="check provenance capture")
+    parser.add_argument("-u", "--upload",
+                        action="store_true",
+                        help="upload trace data to TACC S3")
+    parser.add_argument("--prov_only",
+                        action="store_true",
+                        help="upload only provenance")
     args = parser.parse_args()
 
     session = AqSession(
-        resources['login'], resources['password'], resources['aquarium_url'])
+        resources['aquarium']['login'],
+        resources['aquarium']['password'],
+        resources['aquarium']['aquarium_url']
+    )
 
     plan = session.Plan.find(args.plan_id)
 
@@ -146,11 +159,30 @@ def main():
     if args.validate:
         check_files(trace.files)
         check_entities(
-            trace.items, ['109594', '43625', '43624', '43626', '43627', '118359', '139257'])
+            trace.items,
+            ['109594', '43625', '43624', '43626', '43627', '118359', '139257']
+        )
 
     if args.output:
         with open(args.output, 'w') as file:
             file.write(json.dumps(trace.as_dict(), indent=2))
+
+    if args.upload:
+        manager = UploadManager.create_from(trace=trace)
+        manager.configure(
+            s3=boto3.client(
+                's3',
+                endpoint_url="{}://{}".format(resources['s3']['S3_PROTO'],
+                                              resources['s3']['S3_URI']),
+                aws_access_key_id=resources['s3']['S3_KEY'],
+                aws_secret_access_key=resources['s3']['S3_SECRET'],
+                config=Config(signature_version=resources['s3']['S3_SIG']),
+                region_name=resources['s3']['S3_REGION'],
+            ),
+            bucket='uploads',
+            basepath='biofab'
+        )
+        manager.upload(prov_only=args.prov_only)
 
 
 if __name__ == "__main__":
