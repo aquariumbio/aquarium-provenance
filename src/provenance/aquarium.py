@@ -14,7 +14,7 @@ import abc
 import re
 import os
 import sys
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from collections import defaultdict
 from typing import List
 
@@ -522,7 +522,7 @@ class TraceFactory:
                     if is_upload_matrix(association):
                         upload_matrix = get_upload_matrix(association.object)
                     elif is_routing_matrix(association):
-                        routing_matrix = get_routing_matrix(association.object)
+                        routing_matrix = get_routing_matrix(association.object, association.key)
                     else:
                         item_entity.add_attribute(association.object)
 
@@ -563,7 +563,7 @@ class TraceFactory:
                 source_entity = None
                 if source_id:
                     source_entity = self._get_source(source_id)
-                    if not sample:
+                    if not sample and source_entity:
                         sample = source_entity.get_sample()
                         # TODO: decide whether to flag inconsistency
 
@@ -715,7 +715,11 @@ class TraceFactory:
     def _get_source_id(routing_matrix, i, j):
         entry = TraceFactory._get_routing_entry(routing_matrix, i, j)
         if 'source' in entry:
-            return str(entry['source'])
+            source = entry['source']
+            if isinstance(source, Sequence):
+                return str(source[0]['id'])
+            else:
+                return str(entry['source'])
         return None
 
     @staticmethod
@@ -753,11 +757,14 @@ def get_upload_matrix(association_object):
 
 
 def is_routing_matrix(association):
-    return association.key == 'routing_matrix'
+    return association.key in ['routing_matrix', 'part_data']
 
 
-def get_routing_matrix(association_object):
-    return association_object['routing_matrix']['rows']
+def get_routing_matrix(association_object, key):
+    if key == 'routing_matrix':
+        return association_object[key]['rows']
+    elif key == 'part_data':
+        return association_object[key]
 
 
 def well_coordinates(i: int, j: int):
