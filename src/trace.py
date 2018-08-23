@@ -1,20 +1,19 @@
-import abc
 import argparse
 import boto3
 import json
 import logging
-import os
 import sys
 from botocore.client import Config
 from pydent import AqSession
-from provenance.aquarium import (
+from aquarium.provenance import check_trace
+from aquarium.trace_factory import (
     TraceFactory,
     file_generator_patch,
     tag_measurement_operations,
     infer_part_source_from_collection,
     infer_collection_source_from_parts)
 from resources import resources
-from upload.aquarium_trace_upload import UploadManager
+from aquarium.trace_upload import UploadManager, S3DumpProxy
 
 
 def add_yg_op_attributes(trace, ):
@@ -24,12 +23,24 @@ def add_yg_op_attributes(trace, ):
     """
     tag_measurement_operations(
         trace,
-        [
-            'Flow Cytometry 96 well',
-            '4. Measure OD and GFP',
-            '3. Synchronize by OD',
-            'Cytometer Bead Calibration'
-        ]
+        {
+            'Flow Cytometry 96 well': {
+                'measurement_type': 'FLOW',
+                'instrument_configuration': 'agave://data-sd2e-community/biofab/instruments/accuri/5539/11272017/cytometer_configuration.json'
+            },
+            '4. Measure OD and GFP': {
+                'measurement_type': 'PLATE_READER',
+                'instrument_configuration': 'agave://data-sd2e-community/biofab/instruments/synergy_ht/216503/03132018/platereader_configuration.json'
+            },
+            '3. Synchronize by OD': {
+                'measurement_type': 'PLATE_READER',
+                'instrument_configuration': 'agave://data-sd2e-community/biofab/instruments/synergy_ht/216503/03132018/platereader_configuration.json'
+            },
+            'Cytometer Bead Calibration': {
+                'measurement_type': 'FLOW',
+                'instrument_configuration': 'agave://data-sd2e-community/biofab/instruments/accuri/5539/11272017/cytometer_configuration.json'
+            }
+        }
     )
 
 
@@ -146,45 +157,6 @@ def yeast_gates_patch(trace, plan):
             fix_plate_reader_file_generators(entity, trace)
 
 
-def check_entities(entity_map, stop_list):
-    has_error = False
-    for _, entity in entity_map.items():
-        if entity.item_id in stop_list:
-            continue
-
-        if not entity.generator:
-            logging.warning("%s %s has no generators",
-                            entity.item_type, entity.item_id)
-            has_error = True
-        if not entity.sources:
-            if entity.is_part():
-                if entity.collection.sources:
-                    logging.warning("%s %s has no sources, but %s does",
-                                    entity.item_type,
-                                    entity.item_id,
-                                    entity.collection.item_id)
-                    has_error = True
-            else:
-                logging.warning("%s %s has no sources",
-                                entity.item_type, entity.item_id)
-                has_error = True
-    return has_error
-
-
-def check_files(file_map):
-    has_error = False
-    for _, entity in file_map.items():
-        if not entity.generator:
-            logging.warning("%s %s has no generators",
-                            entity.name, entity.file_id)
-            has_error = True
-        if not entity.sources:
-            logging.warning("%s %s has no sources",
-                            entity.name, entity.file_id)
-            has_error = True
-    return has_error
-
-
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-p", "--plan_id",
@@ -204,6 +176,8 @@ def main():
     parser.add_argument("--debug",
                         action="store_true",
                         help="set log level to debug instead of info")
+    parser.add_argument("--dump",
+                        help="directory to dump files instead of uploading")
     args = parser.parse_args()
 
     session = AqSession(
@@ -232,10 +206,8 @@ def main():
     if args.validate:
         logging.info("Checking provenance")
         input_items = trace.get_inputs()
-        input_id_list = [item.item_id for item in input_items]
-        file_check = check_files(trace.files)
-        entity_check = check_entities(trace.items, input_id_list)
-        if file_check or entity_check:
+        stop_list = [item.item_id for item in input_items]
+        if not check_trace(trace=trace, stop_list=stop_list):
             print("Errors in provenance, check log for detail",
                   file=sys.stderr)
 
@@ -245,8 +217,10 @@ def main():
 
     if args.upload:
         manager = UploadManager.create_from(trace=trace)
-        manager.configure(
-            s3=boto3.client(
+        if args.dump:
+            s3_client = S3DumpProxy(args.dump)
+        else:
+            s3_client = boto3.client(
                 's3',
                 endpoint_url="{}://{}".format(resources['s3']['S3_PROTO'],
                                               resources['s3']['S3_URI']),
@@ -254,7 +228,9 @@ def main():
                 aws_secret_access_key=resources['s3']['S3_SECRET'],
                 config=Config(signature_version=resources['s3']['S3_SIG']),
                 region_name=resources['s3']['S3_REGION'],
-            ),
+            )
+        manager.configure(
+            s3=s3_client,
             bucket='uploads',
             basepath='biofab'
         )
