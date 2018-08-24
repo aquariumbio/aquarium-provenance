@@ -37,6 +37,10 @@ class AttributesMixin(abc.ABC):
             if value:
                 self.attributes[key] = value
 
+    def get_attribute(self, key):
+        if key in self.attributes:
+            return self.attributes[key]
+
     def as_dict(self):
         attr_dict = dict()
         if self.attributes:
@@ -145,7 +149,11 @@ class CollectionEntity(AbstractItemEntity):
     def __init__(self, collection):
         self.object_type = collection.object_type
         self.collection = collection
+        self.parts = list()
         super().__init__(item_id=collection.id, item_type='collection')
+
+    def add_part(self, part):
+        self.parts.append(part)
 
     def apply(self, visitor):
         visitor.visit_collection(self)
@@ -177,6 +185,16 @@ class FileEntity(AbstractEntity):
         self.upload = upload
         super().__init__()
 
+    def add_source(self, source):
+        # Add source ID as prefix to avoid name conflicts
+        # should only be one source for a file
+        prefix = source.item_id
+        if source.is_part():
+            prefix = source.collection.item_id
+        self.name = "{}-{}".format(prefix, self.name)
+
+        super().add_source(source)
+
     def apply(self, visitor):
         visitor.visit_file(self)
 
@@ -188,24 +206,21 @@ class FileEntity(AbstractEntity):
             return 'CSV'
     type = property(file_type)
 
-    def as_dict(self):
+    def as_dict(self, *, path=None):
         file_dict = super().as_dict()
         file_dict['file_id'] = self.file_id
-        file_dict['filename'] = self.name
+        # TODO: figure out how to prefix name by generator based path when needed
+        file_dict['filename'] = self.get_path(directory=path)
         file_dict['size'] = self.size
         if self.type:
             file_dict['type'] = self.type
         return file_dict
 
-    def add_name_prefix(self):
-        if not self.sources:
-            return
-
-        source = self.sources[0]
-        prefix = source.item_id
-        if source.is_part():
-            prefix = source.collection.item_id
-        self.name = "{}-{}".format(prefix, self.name)
+    def get_path(self, *, directory=None):
+        name = self.name
+        if directory:
+            name = os.path.join(directory, name)
+        return name
 
 
 class PartEntity(AbstractItemEntity):
@@ -213,6 +228,7 @@ class PartEntity(AbstractItemEntity):
     def __init__(self, *, part_id: str, sample, collection: CollectionEntity):
         self.sample = sample
         self.collection = collection
+        self.collection.add_part(self)
         super().__init__(item_id=part_id, item_type='part')
 
     @property
@@ -452,22 +468,16 @@ class PlanTrace(AttributesMixin):
             for _, entity in self.files.items():
                 if entity.generator.is_job():
                     if entity.generator.job_id == activity.job_id:
-                        # make a shallow copy and then add prefix to file name
-                        file_entity = copy(entity)
-                        file_entity.add_name_prefix()
-                        trace.add_file(file_entity)
-                        item_queue.extend(file_entity.sources)
+                        trace.add_file(entity)
+                        item_queue.extend(entity.sources)
             operation_queue.extend(activity.operations)
         else:
             operation_queue.append(activity)
             for _, entity in self.files.items():
                 if not entity.generator.is_job():
                     if entity.generator.operation_id == activity.operation_id:
-                        # make a shallow copy and then add prefix to file name
-                        file_entity = copy(entity)
-                        file_entity.add_name_prefix()
-                        trace.add_file(file_entity)
-                        item_queue.extend(file_entity.sources)
+                        trace.add_file(entity)
+                        item_queue.extend(entity.sources)
 
         visited_operations = set()
         visited_items = set()
@@ -491,12 +501,12 @@ class PlanTrace(AttributesMixin):
                     operation_queue.append(item.generator)
                 if item.is_part():
                     item_queue.append(item.collection)
+                elif item.is_collection():
+                    item_queue.extend(item.parts)
                 item_queue.extend(item.sources)
                 visited_items.add(item.item_id)
 
         return trace
-
-# TODO: move factory and trace heuristics to a different file
 
 
 def check_operation(trace, operation):
@@ -504,7 +514,7 @@ def check_operation(trace, operation):
     for arg in operation.inputs:
         if arg.is_item() and not trace.has_item(arg.item_id):
             msg = "argument %s of operation %s is not in the trace"
-            logging.warning(msg.format(arg.item_id, operation.operation_id))
+            logging.warning(msg, arg.item_id, operation.operation_id)
             no_error = False
     return no_error
 
@@ -514,6 +524,13 @@ def check_item(trace, entity, stop_list):
     if entity.item_id in stop_list:
         return no_error
 
+    if entity.is_collection():
+        for part in entity.parts:
+            if not trace.has_item(part.item_id):
+                logging.warning(
+                    "Part %s not in trace", part.item_id)
+                no_error = False
+
     if not entity.generator:
         logging.warning("%s %s has no generators",
                         entity.item_type, entity.item_id)
@@ -521,21 +538,24 @@ def check_item(trace, entity, stop_list):
     else:
         if entity.generator.is_job():
             if entity.generator.job_id not in trace.jobs:
-                logging.warning("job %s is a generator for %s %s but is not in trace",
+                msg = "job %s is a generator for %s %s but is not in trace"
+                logging.warning(msg,
                                 entity.generator.job_id,
                                 entity.item_type,
                                 entity.item_id)
                 no_error = False
             for op in entity.generator.operations:
                 if op.operation_id not in trace.operations:
-                    logging.warning("operation %s in job %s a generator for %s %s not in trace",
+                    msg = "operation %s in job %s a generator for %s %s not in trace"
+                    logging.warning(msg,
                                     op.operation_id,
                                     entity.generator.job_id,
                                     entity.item_type,
                                     entity.item_id)
                     no_error = False
         elif entity.generator.operation_id not in trace.operations:
-            logging.warning("operation %s is a generator for %s %s but is not in trace",
+            msg = "operation %s is a generator for %s %s but is not in trace"
+            logging.warning(msg,
                             entity.generator.operation_id,
                             entity.item_type,
                             entity.item_id)
@@ -560,8 +580,11 @@ def check_item(trace, entity, stop_list):
                             entity.item_type, entity.item_id)
             no_error = False
     else:
-        # TODO: finish
-        pass
+        for source_id in entity.get_source_ids():
+            if not trace.has_item(source_id):
+                logging.warning("source %s for %s %s is not in trace",
+                                source_id, entity.item_type, entity.item_id)
+                no_error = False
     return no_error
 
 
@@ -596,12 +619,19 @@ def check_file(trace, entity):
                         entity.name, entity.file_id)
         no_error = False
     else:
-        # TODO: finish
-        pass
+        for source_id in entity.get_source_ids():
+            if not trace.has_item(source_id):
+                logging.warning("source %s for %s is not in trace",
+                                source_id, entity.file_id)
+                no_error = False
     return no_error
 
 
-def check_trace(*, trace, stop_list):
+def check_trace(*, trace, stop_list=[]):
+    logging.info("starting trace check")
+    if not stop_list:
+        input_items = trace.get_inputs()
+        stop_list = [item.item_id for item in input_items]
 
     no_error = True
     for _, entity in trace.items.items():
@@ -613,4 +643,8 @@ def check_trace(*, trace, stop_list):
     for _, activity in trace.operations.items():
         if not check_operation(trace, activity):
             no_error = False
+    if no_error:
+        logging.info("no trace errors found")
+    else:
+        logging.info("trace errors found")
     return no_error

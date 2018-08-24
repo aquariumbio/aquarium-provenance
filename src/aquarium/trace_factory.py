@@ -1,3 +1,4 @@
+import json
 import logging
 import re
 from collections import defaultdict
@@ -197,7 +198,8 @@ class TraceFactory:
                 # Add part as source to file linked in upload_matrix
                 if upload_matrix:
                     upload_id = upload_matrix[i][j]
-                    self._get_file(upload_id=upload_id, source=part_entity)
+                    if upload_id and upload_id > 0:
+                        self._get_file(upload_id=upload_id, source=part_entity)
 
                 attributes = TraceFactory._get_attributes(routing_matrix, i, j)
                 part_entity.add_attribute(attributes)
@@ -436,19 +438,16 @@ def file_generator_patch(trace):
         if not ops:
             continue
 
-        # choose generator
-        generator = ops[0]
-        generator_id = generator.operation_id
-        msg = "Adding operation %s as generator for file %s"
-
         if len(ops) > 1:
             jobs = [job.id for job in [
                 max(op.operation.jobs, key=lambda job: job.updated_at) for op in ops]]
             if jobs.count(jobs[0]) == len(jobs):
                 generator_id = jobs[0]
                 generator = JobActivity(job_id=generator_id, operations=ops)
+                trace.add_job(generator)
+                file_entity.add_generator(generator)
                 msg = "Adding job %s as generator for file %s"
-
+                logging.info(msg, generator_id, file_entity.file_id)
             else:
                 msg = "Source %s %s for file %s is input to operations in jobs %s. Bailing..."
                 logging.warning(msg, source.item_type,
@@ -456,9 +455,12 @@ def file_generator_patch(trace):
                                 file_entity.file_id,
                                 jobs)
                 continue
-
-        logging.info(msg, generator_id, file_entity.file_id)
-        file_entity.add_generator(generator)
+        else:
+            generator = ops[0]
+            generator_id = generator.operation_id
+            msg = "Adding operation %s as generator for file %s"
+            logging.info(msg, generator_id, file_entity.file_id)
+            file_entity.add_generator(generator)
 
 
 def tag_measurement_operations(trace, measurements: List[str]):

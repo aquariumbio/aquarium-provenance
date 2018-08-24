@@ -16,7 +16,7 @@ from resources import resources
 from aquarium.trace_upload import UploadManager, S3DumpProxy
 
 
-def add_yg_op_attributes(trace, ):
+def add_yg_op_attributes(trace):
     """
     only add measurement operation attribute to operations that only do the
     measurement.
@@ -96,14 +96,28 @@ def fix_bead_files(trace, plan):
     bead_uploads = [up.id for up in [
         assoc.upload for assoc in plan.data_associations
         if assoc.upload and 'BEAD' in assoc.key]]
+    if not bead_uploads:
+        logging.warning("No bead associations found")
+        return
+
     flow_ops = [op for _, op in trace.operations.items()
                 if op.operation_type.name in bead_ops]
+    if not flow_ops:
+        logging.warning("No cytometry operations found")
+        return
+
     bead_inputs = list()
     for inputs in [op.inputs for op in flow_ops]:
         for arg in inputs:
             if arg.name == 'calibration beads':
                 bead_inputs.append(arg.item_id)
+    if not bead_inputs:
+        logging.warning(
+            "No calibration beads as inputs to cytometry operation")
+        return
 
+    print("num uploads {}, ops {}, inputs {}".format(
+        len(bead_uploads), len(flow_ops), len(bead_inputs)))
     # TODO: check that the counts are the same
     for i in range(len(bead_inputs)):
         file_entity = trace.get_file(bead_uploads[i])
@@ -157,12 +171,36 @@ def yeast_gates_patch(trace, plan):
             fix_plate_reader_file_generators(entity, trace)
 
 
+def find_igem_plate(trace):
+    generator_id = None
+    for op_id, op_activity in trace.operations.items():
+        if op_activity.operation_type.name == '2. Resuspension and Outgrowth':
+            generator_id = op_id
+            break
+
+    if not generator_id:
+        return None
+
+    for _, entity in trace.items.items():
+        if entity.generator and not entity.generator.is_job():
+            if entity.generator.operation_id == generator_id:
+                standard = entity.get_attribute('standard')
+                if standard and standard == 'IGEM_protocol':
+                    return entity
+
+
 def main():
-    parser = argparse.ArgumentParser()
+    desc = "Generate provenance and/or transfer files to TACC"
+    parser = argparse.ArgumentParser(description=desc)
     parser.add_argument("-p", "--plan_id",
                         help="the ID of the plan",
                         required=True)
+    parser.add_argument("-c", "--challenge_problem",
+                        choices=['yg', 'nc', 'ps'],
+                        help="the challenge problem",
+                        required=True)
     parser.add_argument("-o", "--output",
+                        action="store_true",
                         help="write provenance to file")
     parser.add_argument("-v", "--validate",
                         action="store_true",
@@ -189,7 +227,8 @@ def main():
     logging_level = logging.INFO
     if args.debug:
         logging_level = logging.DEBUG
-    logging.basicConfig(filename='provenance.log',
+    log_filename = str(args.plan_id) + '-provenance.log'
+    logging.basicConfig(filename=log_filename,
                         filemode='w',
                         level=logging_level)
 
@@ -207,15 +246,19 @@ def main():
         logging.info("Checking provenance")
         input_items = trace.get_inputs()
         stop_list = [item.item_id for item in input_items]
+        igem_plate = find_igem_plate(trace)
+        if igem_plate:
+            stop_list.append(igem_plate.item_id)
         if not check_trace(trace=trace, stop_list=stop_list):
             print("Errors in provenance, check log for detail",
                   file=sys.stderr)
 
     if args.output:
-        with open(args.output, 'w') as file:
+        filename = "{}-{}-provenance.json".format(args.challenge_problem, args.plan_id)
+        with open(filename, 'w') as file:
             file.write(json.dumps(trace.as_dict(), indent=2))
 
-    if args.upload:
+    if args.upload or args.dump:
         manager = UploadManager.create_from(trace=trace)
         if args.dump:
             s3_client = S3DumpProxy(args.dump)

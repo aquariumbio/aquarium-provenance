@@ -1,6 +1,9 @@
 import datetime
 import json
+import logging
 import os
+import sys
+from aquarium.provenance import check_trace
 
 
 class UploadManager:
@@ -26,9 +29,13 @@ class UploadManager:
                 generator_id = file_entity.generator.operation_id
                 gen_name = "op_{}".format(generator_id)
             if gen_name not in dir_map:
-                print("adding {}".format(gen_name))
-                dir_map[gen_name] = trace.project_from(
+                logging.info("Adding trace for %s", gen_name)
+                measurement_trace = trace.project_from(
                     file_entity.generator)
+                dir_map[gen_name] = measurement_trace
+                if not check_trace(trace=measurement_trace):
+                    print("provenance error for {}".format(gen_name),
+                          file=sys.stderr)
 
         return UploadManager(trace=trace, directory_map=dir_map)
 
@@ -59,7 +66,7 @@ class UploadManager:
 
     def _put_object(self, *, path, filename, file_object, content_type):
         key_path = os.path.join(path, filename)
-        print("upload {} to {}".format(key_path, self.bucket))
+        logging.info("upload %s to %s", key_path, self.bucket)
         self.s3.put_object(
             Body=file_object,
             Bucket=self.bucket,
