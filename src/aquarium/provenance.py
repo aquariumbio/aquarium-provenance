@@ -20,7 +20,7 @@ from copy import copy
 class AttributesMixin(abc.ABC):
     """
     Defines an abstract class to serve as a mixin for classes with objects that
-    should carry attributes.
+    carry attributes.
 
     In Aquarium, only a Plan, Item and Operation may carry data associations
     from which these are populated, so only apply these to the corresponding
@@ -461,6 +461,7 @@ class PlanTrace(AttributesMixin):
 
     def project_from(self, activity):
         trace = PlanTrace(plan_id=self.plan_id, name=self.plan_name)
+        trace.attributes = copy(self.attributes)
         operation_queue = deque()
         item_queue = deque()
         if activity.is_job():
