@@ -58,14 +58,14 @@ class AbstractEntity(abc.ABC):
     @abc.abstractmethod
     def __init__(self):
         self.generator = None
-        self.sources = list()
+        self.sources = set()
         super().__init__()
 
     def add_generator(self, activity):
         self.generator = activity
 
     def add_source(self, entity):
-        self.sources.append(entity)
+        self.sources.add(entity)
 
     def get_source_ids(self):
         return [item_entity.item_id for item_entity in self.sources]
@@ -188,6 +188,9 @@ class FileEntity(AbstractEntity):
     def add_source(self, source):
         # Add source ID as prefix to avoid name conflicts
         # should only be one source for a file
+        if source in self.sources:
+            return
+
         prefix = source.item_id
         if source.is_part():
             prefix = source.collection.item_id
@@ -395,7 +398,7 @@ class PlanTrace(AttributesMixin):
         self.jobs = dict()
         self.items = dict()
         self.files = dict()
-        self.input_list = defaultdict(list)
+        self.input_list = defaultdict(list) # inverted list: item->op
         super().__init__()
 
     def add_file(self, file_entity):
@@ -406,6 +409,9 @@ class PlanTrace(AttributesMixin):
         logging.debug("Adding %s %s to trace",
                       item_entity.item_type, item_entity.item_id)
         self.items[item_entity.item_id] = item_entity
+
+    def add_input(self, item_id, op_activity):
+        self.input_list[item_id].append(op_activity)
 
     def add_operation(self, operation):
         logging.debug("Adding operation %s to trace", operation.operation_id)
@@ -426,6 +432,13 @@ class PlanTrace(AttributesMixin):
 
     def get_item(self, item_id):
         return self.items[str(item_id)]
+
+    def get_operations(self, item_id):
+        """
+        Get operations that have the item as an input
+        """
+        return self.input_list[item_id]
+
 
     def get_file(self, file_id):
         return self.files[str(file_id)]
@@ -475,7 +488,7 @@ class PlanTrace(AttributesMixin):
         else:
             operation_queue.append(activity)
             for _, entity in self.files.items():
-                if not entity.generator.is_job():
+                if entity.generator and not entity.generator.is_job():
                     if entity.generator.operation_id == activity.operation_id:
                         trace.add_file(entity)
                         item_queue.extend(entity.sources)

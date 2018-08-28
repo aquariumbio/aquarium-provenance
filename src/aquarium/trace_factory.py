@@ -70,7 +70,7 @@ class TraceFactory:
             if is_input(field_value):
                 op_activity.add_input(arg)
                 if arg.is_item():
-                    self.trace.input_list[arg.item_id].append(op_activity)
+                    self.trace.add_input(arg.item_id, op_activity)
                     if not self.trace.has_item(arg.item_id):
                         self._create_items(
                             item_id=arg.item_id
@@ -86,7 +86,7 @@ class TraceFactory:
                             item.add_source(source_id)
                     elif arg.routing_id:
                         logging.warning(
-                            "unmatched routing %s for output %s of operation %s",
+                            "unmatched routing %s for operation %s output %s",
                             arg.routing_id, arg.item_id, operation.id
                         )
                 else:
@@ -100,7 +100,7 @@ class TraceFactory:
                             item.add_source(source_id)
                     elif arg.routing_id:
                         logging.warning(
-                            "unmatched routing %s for output %s of operation %s",
+                            "unmatched routing %s for operation %s output %s",
                             arg.routing_id, arg.item_id, operation.id
                         )
 
@@ -112,6 +112,9 @@ class TraceFactory:
                     if file_entity:
                         file_entity.add_generator(op_activity)
                 elif association.object:
+                    logging.debug("operation %s has association %s",
+                                  op_activity.operation_id, association.key)
+                    logging.debug(json.dumps(association.object, indent=2))
                     op_activity.add_attribute(association.object)
 
     def _create_items(self, *, item_id, generator=None):
@@ -136,6 +139,9 @@ class TraceFactory:
                         source=item_entity
                     )
                 elif association.object:
+                    logging.debug("collection %s has association %s",
+                                  item_entity.item_id, association.key)
+                    logging.debug(json.dumps(association.object, indent=2))
                     if is_upload_matrix(association):
                         upload_matrix = get_upload_matrix(association.object)
                     elif is_routing_matrix(association):
@@ -161,6 +167,8 @@ class TraceFactory:
                         source=item_entity
                     )
                 elif association.object:
+                    logging.debug("item %s has association %s",
+                                  item_entity.item_id, association.key)
                     item_entity.add_attribute(association.object)
 
     # TODO: this is for 96 well plates, make work for general collections
@@ -427,11 +435,11 @@ def file_generator_patch(trace):
             logging.warning(msg, file_entity.file_id)
             continue
 
-        source = sources[0]
+        source = next(iter(sources))
         if source.item_type == 'part':
             source = source.collection
 
-        ops = [op for op in trace.input_list[source.item_id]
+        ops = [op for op in trace.get_operations(source.item_id)
                if op.is_measurement()]
 
         # need exactly one

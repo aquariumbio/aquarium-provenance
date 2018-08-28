@@ -55,6 +55,7 @@ class UploadManager:
 
     def _upload_directory(self, *, path, entity_map):
         for _, file_entity in entity_map.items():
+            # TODO: use upload.content_type
             if file_entity.type == 'FCS':
                 content_type = 'application/octet-stream'
             elif file_entity.type == 'CSV':
