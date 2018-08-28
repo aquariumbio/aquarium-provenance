@@ -6,169 +6,10 @@ import sys
 from botocore.client import Config
 from pydent import AqSession
 from aquarium.provenance import check_trace
-from aquarium.trace_factory import (
-    TraceFactory,
-    file_generator_patch,
-    tag_measurement_operations,
-    infer_part_source_from_collection,
-    infer_collection_source_from_parts)
+from aquarium.trace_factory import (TraceFactory)
 from resources import resources
 from aquarium.trace_upload import UploadManager, S3DumpProxy
-
-
-def add_yg_op_attributes(trace):
-    """
-    only add measurement operation attribute to operations that only do the
-    measurement.
-    """
-    tag_measurement_operations(
-        trace,
-        {
-            'Flow Cytometry 96 well': {
-                'measurement_type': 'FLOW',
-                'instrument_configuration': 'agave://data-sd2e-community/biofab/instruments/accuri/5539/11272017/cytometer_configuration.json'
-            },
-            '4. Measure OD and GFP': {
-                'measurement_type': 'PLATE_READER',
-                'instrument_configuration': 'agave://data-sd2e-community/biofab/instruments/synergy_ht/216503/03132018/platereader_configuration.json'
-            },
-            '3. Synchronize by OD': {
-                'measurement_type': 'PLATE_READER',
-                'instrument_configuration': 'agave://data-sd2e-community/biofab/instruments/synergy_ht/216503/03132018/platereader_configuration.json'
-            },
-            'Cytometer Bead Calibration': {
-                'measurement_type': 'FLOW',
-                'instrument_configuration': 'agave://data-sd2e-community/biofab/instruments/accuri/5539/11272017/cytometer_configuration.json'
-            }
-        }
-    )
-
-
-def fix_plate_reader_file_sources(file_entity):
-    """
-    Fixes a misinterpretation issue with plate reader files in yeast gates
-    where a file may be associated with multiple items to make computations
-    easier.
-
-    The correct source ID is usually the first in the list, but file names have
-    the ID, so checking just to be certain.
-    """
-    for source in file_entity.sources:
-        if source.item_id in file_entity.name:
-            msg = "Replacing sources for file %s with %s %s"
-            logging.info(msg, file_entity.file_id,
-                         source.item_type, source.item_id)
-            file_entity.sources = [source]
-            return
-
-
-def fix_plate_reader_file_generators(file_entity, trace):
-    """
-    YG plate reader files generated in three places:
-    - IGEM protocol plate created by Resuspension and Outgrowth
-    - Initial OD in Synch by OD
-    - Final reading in Measure OD & GFP
-    """
-    if file_entity.generator:
-        return
-    if not file_entity.sources:
-        return
-    if len(file_entity.sources) > 1:
-        return
-
-    source = file_entity.sources[0]
-    if source.generator.is_job():
-        return
-    source_gen = source.generator
-    input_list = trace.input_list[source.item_id]
-    if source_gen.operation_type.name == "2. Resuspension and Outgrowth":
-        if not input_list:  # IGEM protocol
-            file_entity.add_generator(source_gen)
-            source.add_attribute({'standard': 'IGEM_protocol'})
-
-
-def fix_bead_files(trace, plan):
-    """
-    The protocol doesn't link the calibration beads to either the operation or
-    item, so end up as stray uploads.
-    """
-    bead_ops = ['Flow Cytometry 96 well', 'Cytometer Bead Calibration']
-    bead_uploads = [up.id for up in [
-        assoc.upload for assoc in plan.data_associations
-        if assoc.upload and 'BEAD' in assoc.key]]
-    if not bead_uploads:
-        logging.warning("No bead associations found")
-        return
-
-    flow_ops = [op for _, op in trace.operations.items()
-                if op.operation_type.name in bead_ops]
-    if not flow_ops:
-        logging.warning("No cytometry operations found")
-        return
-
-    bead_inputs = list()
-    for inputs in [op.inputs for op in flow_ops]:
-        for arg in inputs:
-            if arg.name == 'calibration beads':
-                bead_inputs.append(arg.item_id)
-    if not bead_inputs:
-        logging.warning(
-            "No calibration beads as inputs to cytometry operation")
-        return
-
-    print("num uploads {}, ops {}, inputs {}".format(
-        len(bead_uploads), len(flow_ops), len(bead_inputs)))
-    # TODO: check that the counts are the same
-    for i in range(len(bead_inputs)):
-        file_entity = trace.get_file(bead_uploads[i])
-        file_entity.add_generator(flow_ops[i])
-        bead_item = trace.get_item(bead_inputs[i])
-        file_entity.add_source(bead_item)
-        bead_item.add_attribute({'standard': 'BEAD_FLUORESCENCE'})
-        logging.info("Adding beads %s as source for file %s",
-                     bead_item.item_id, file_entity.file_id)
-
-
-def fix_part_sources(trace, entity):
-    """
-    Heuristic to add sources for parts of a collection generated by an operator
-    that copies a collection well-to-well.
-    """
-    pass_through_ops = ['4. Measure OD and GFP']
-    if entity.sources:
-        return
-    if not entity.is_part():
-        return
-    coll_entity = entity.collection
-    if not coll_entity.generator:
-        return
-    if coll_entity.generator.operation_type.name in pass_through_ops:
-        infer_part_source_from_collection(trace, entity)
-
-
-def fix_sources(trace):
-    for _, entity in trace.items.items():
-        if entity.sources:
-            continue
-
-        if entity.is_part():
-            fix_part_sources(trace, entity)
-        elif entity.is_collection():
-            infer_collection_source_from_parts(trace, entity)
-
-
-def yeast_gates_patch(trace, plan):
-    trace.add_attribute({'challenge_problem': 'YEAST_GATES'})
-    add_yg_op_attributes(trace)
-
-    fix_bead_files(trace, plan)
-    for _, entity in trace.files.items():
-        if len(entity.sources) > 1:
-            fix_plate_reader_file_sources(entity)
-    file_generator_patch(trace)
-    for _, entity in trace.files.items():
-        if not entity.generator:
-            fix_plate_reader_file_generators(entity, trace)
+from yeast_gates import patch_trace
 
 
 def find_igem_plate(trace):
@@ -238,9 +79,9 @@ def main():
     trace = TraceFactory.create_from(session=session, plan=plan)
     trace.add_attribute({'lab': 'UW_BIOFAB'})
 
-    logging.info("Applying heuristic fixes")
-    fix_sources(trace)
-    yeast_gates_patch(trace, plan)
+    if args.challenge_problem == 'yg':
+        logging.info("Applying yeast gates heuristic fixes")
+        patch_trace(trace, plan)
 
     if args.validate:
         logging.info("Checking provenance")
@@ -254,15 +95,18 @@ def main():
                   file=sys.stderr)
 
     if args.output:
-        filename = "{}-{}-provenance.json".format(args.challenge_problem, args.plan_id)
+        filename = "{}-{}-provenance.json".format(
+            args.challenge_problem, args.plan_id)
         with open(filename, 'w') as file:
             file.write(json.dumps(trace.as_dict(), indent=2))
 
     if args.upload or args.dump:
         manager = UploadManager.create_from(trace=trace)
         if args.dump:
+            print("Creating local dump")
             s3_client = S3DumpProxy(args.dump)
         else:
+            print("Uploading to TACC")
             s3_client = boto3.client(
                 's3',
                 endpoint_url="{}://{}".format(resources['s3']['S3_PROTO'],
