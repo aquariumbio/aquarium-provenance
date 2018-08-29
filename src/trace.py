@@ -9,7 +9,7 @@ from aquarium.provenance import check_trace
 from aquarium.trace_factory import (TraceFactory)
 from resources import resources
 from aquarium.trace_upload import UploadManager, S3DumpProxy
-from yeast_gates import patch_trace
+from aquarium.trace_patch import fix_trace
 
 
 def find_igem_plate(trace):
@@ -57,6 +57,9 @@ def main():
                         help="set log level to debug instead of info")
     parser.add_argument("--dump",
                         help="directory to dump files instead of uploading")
+    parser.add_argument("--no_fix",
+                        action="store_true",
+                        help="do not apply heuristic fixes to provenance")
     args = parser.parse_args()
 
     session = AqSession(
@@ -80,13 +83,22 @@ def main():
     trace.add_attribute({'lab': 'UW_BIOFAB'})
 
     if args.challenge_problem == 'yg':
-        logging.info("Applying yeast gates heuristic fixes")
-        patch_trace(trace, plan)
+        trace.add_attribute({'challenge_problem': 'YEAST_GATES'})
+    elif args.challenge_problem == 'nc':
+        trace.add_attribute({'challenge_problem': 'NOVEL_CHASSIS'})
+    elif args.challenge_problem == 'ps':
+        trace.add_attribute({'challenge_problem': 'PROTEIN_DESIGN'})
+
+    stop_list = [item.item_id for item in trace.get_inputs()]
+
+    if not args.no_fix:
+        logging.info("Applying heuristic fixes to provenance")
+        # TODO: figure out why have to exclude IGEM plate from fix stop list
+        fix_trace(trace, stop_list)
 
     if args.validate:
         logging.info("Checking provenance")
-        input_items = trace.get_inputs()
-        stop_list = [item.item_id for item in input_items]
+        # IGEM plate is special case because produced but inputs not captured
         igem_plate = find_igem_plate(trace)
         if igem_plate:
             stop_list.append(igem_plate.item_id)
