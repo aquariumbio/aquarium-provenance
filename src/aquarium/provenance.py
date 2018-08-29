@@ -107,6 +107,9 @@ class AbstractItemEntity(AbstractEntity, AttributesMixin):
     def is_collection(self):
         return False
 
+    def is_item(self):
+        return False
+
     def is_part(self):
         return False
 
@@ -140,6 +143,9 @@ class ItemEntity(AbstractItemEntity):
     def get_sample(self):
         return self.sample
 
+    def is_item(self):
+        return True
+
 
 class CollectionEntity(AbstractItemEntity):
     """
@@ -167,6 +173,37 @@ class CollectionEntity(AbstractItemEntity):
         return item_dict
 
     def is_collection(self):
+        return True
+
+
+class PartEntity(AbstractItemEntity):
+
+    def __init__(self, *, part_id: str, sample, collection: CollectionEntity):
+        self.sample = sample
+        self.collection = collection
+        self.collection.add_part(self)
+        super().__init__(item_id=part_id, item_type='part')
+
+    @property
+    def part_ref(self):
+        return self.item_id.split('/')[1]
+
+    def get_sample(self):
+        return self.sample
+
+    def apply(self, visitor):
+        visitor.visit_part(self)
+
+    def as_dict(self):
+        item_dict = super().as_dict()
+        item_dict['part_of'] = self.collection.item_id
+        sample_dict = dict()
+        sample_dict['sample_id'] = str(self.sample.id)
+        sample_dict['sample_name'] = self.sample.name
+        item_dict['sample'] = sample_dict
+        return item_dict
+
+    def is_part(self):
         return True
 
 
@@ -226,37 +263,6 @@ class FileEntity(AbstractEntity):
         return name
 
 
-class PartEntity(AbstractItemEntity):
-
-    def __init__(self, *, part_id: str, sample, collection: CollectionEntity):
-        self.sample = sample
-        self.collection = collection
-        self.collection.add_part(self)
-        super().__init__(item_id=part_id, item_type='part')
-
-    @property
-    def part_ref(self):
-        return self.item_id.split('/')[1]
-
-    def get_sample(self):
-        return self.sample
-
-    def apply(self, visitor):
-        visitor.visit_part(self)
-
-    def as_dict(self):
-        item_dict = super().as_dict()
-        item_dict['part_of'] = self.collection.item_id
-        sample_dict = dict()
-        sample_dict['sample_id'] = str(self.sample.id)
-        sample_dict['sample_name'] = self.sample.name
-        item_dict['sample'] = sample_dict
-        return item_dict
-
-    def is_part(self):
-        return True
-
-
 class OperationArgument(abc.ABC):
     """
     Models an argument to an operation, which can be either a
@@ -267,24 +273,6 @@ class OperationArgument(abc.ABC):
     def __init__(self, *, name: str, field_value_id: str):
         self.name = name
         self.field_value_id = str(field_value_id)
-
-    @staticmethod
-    def create_from(field_value):
-        if field_value.child_item_id is None:
-            return OperationParameter(
-                name=field_value.name,
-                field_value_id=field_value.id,
-                value=field_value.value)
-        else:
-            routing_id = None
-            if field_value.field_type:
-                routing_id = field_value.field_type.routing
-            return OperationInput(
-                name=field_value.name,
-                field_value_id=field_value.id,
-                item_id=field_value.child_item_id,
-                routing_id=routing_id
-            )
 
     def is_item(self):
         """
@@ -314,9 +302,9 @@ class OperationParameter(OperationArgument):
 
 class OperationInput(OperationArgument):
 
-    def __init__(self, *, name, field_value_id, item_id, routing_id=None):
-        # TODO: make this the actual item
-        self.item_id = str(item_id)
+    def __init__(self, *, name, field_value_id, item, routing_id=None):
+        self.item_id = item.item_id
+        self.item = item
         self.routing_id = routing_id
         super().__init__(name=name, field_value_id=field_value_id)
 
@@ -398,7 +386,7 @@ class PlanTrace(AttributesMixin):
         self.jobs = dict()
         self.items = dict()
         self.files = dict()
-        self.input_list = defaultdict(list) # inverted list: item->op
+        self.input_list = defaultdict(list)  # inverted list: item->op
         super().__init__()
 
     def add_file(self, file_entity):
@@ -433,12 +421,14 @@ class PlanTrace(AttributesMixin):
     def get_item(self, item_id):
         return self.items[str(item_id)]
 
+    def get_operation(self, operation_id):
+        return self.operations[operation_id]
+
     def get_operations(self, item_id):
         """
         Get operations that have the item as an input
         """
         return self.input_list[item_id]
-
 
     def get_file(self, file_id):
         return self.files[str(file_id)]
@@ -632,6 +622,9 @@ def check_file(trace, entity):
         logging.warning("%s %s has no sources",
                         entity.name, entity.file_id)
         no_error = False
+    elif len(entity.sources) > 1:
+        logging.warning("%s %s has more than one source",
+                        entity.name, entity.file_id)
     else:
         for source_id in entity.get_source_ids():
             if not trace.has_item(source_id):
