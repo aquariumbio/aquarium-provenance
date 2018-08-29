@@ -5,7 +5,7 @@ import logging
 import sys
 from botocore.client import Config
 from pydent import AqSession
-from aquarium.provenance import check_trace
+from aquarium.trace_check import check_trace
 from aquarium.trace_factory import (TraceFactory)
 from resources import resources
 from aquarium.trace_upload import UploadManager, S3DumpProxy
