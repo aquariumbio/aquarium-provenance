@@ -10,6 +10,8 @@ from aquarium.provenance import (CollectionEntity,
                                  JobActivity,
                                  OperationActivity,
                                  OperationArgument,
+                                 OperationInput,
+                                 OperationParameter,
                                  PartEntity,
                                  PlanTrace)
 
@@ -38,6 +40,10 @@ class TraceFactory:
             if association.upload:
                 factory._get_file(upload_id=association.upload.id)
             elif association.object:
+                if is_upload(association):
+                    factory._get_file(
+                        upload_id=association.object[association.key]['id']
+                    )
                 factory.trace.add_attribute(association.object)
 
         for operation in plan.operations:
@@ -55,6 +61,35 @@ class TraceFactory:
             entity.add_source(source)
         self.trace.add_file(entity)
 
+    def _create_argument(self, field_value, op_activity):
+        item_id = field_value.child_item_id
+        if item_id:
+            if not self.trace.has_item(item_id):
+                if is_input(field_value):
+                    self._create_items(
+                        item_id=item_id
+                    )
+                else:
+                    self._create_items(
+                        item_id=item_id,
+                        generator=op_activity
+                    )
+            item_entity = self.trace.get_item(item_id)
+            routing_id = None
+            if field_value.field_type:
+                routing_id = field_value.field_type.routing
+            return OperationInput(
+                name=field_value.name,
+                field_value_id=field_value.id,
+                item=item_entity,
+                routing_id=routing_id
+            )
+        else:
+            return OperationParameter(
+                name=field_value.name,
+                field_value_id=field_value.id,
+                value=field_value.value)
+
     def _create_operation(self, operation):
         """
         Creates an OperationActivity object from the pydent.model.Operation
@@ -66,38 +101,19 @@ class TraceFactory:
         field_values = sorted(operation.field_values, key=lambda fv: fv.role)
         routing_map = defaultdict(list)
         for field_value in field_values:
-            arg = OperationArgument.create_from(field_value)
+            arg = self._create_argument(field_value, op_activity)
             if is_input(field_value):
                 op_activity.add_input(arg)
-                if arg.is_item():
+
+            if arg.is_item():
+                if is_input(field_value):
                     self.trace.add_input(arg.item_id, op_activity)
-                    if not self.trace.has_item(arg.item_id):
-                        self._create_items(
-                            item_id=arg.item_id
-                        )
-                    item = self.trace.get_item(arg.item_id)
-                    routing_map[arg.routing_id].append(item)
-            elif is_output(field_value) and arg.is_item():
-                if self.trace.has_item(arg.item_id):
-                    item = self.trace.get_item(arg.item_id)
-                    item.add_generator(op_activity)
+                    routing_map[arg.routing_id].append(arg.item)
+                elif is_output(field_value):
+                    arg.item.add_generator(op_activity)
                     if arg.routing_id and routing_map[arg.routing_id]:
                         for source_id in routing_map[arg.routing_id]:
-                            item.add_source(source_id)
-                    elif arg.routing_id:
-                        logging.warning(
-                            "unmatched routing %s for operation %s output %s",
-                            arg.routing_id, arg.item_id, operation.id
-                        )
-                else:
-                    self._create_items(
-                        item_id=arg.item_id,
-                        generator=op_activity
-                    )
-                    if arg.routing_id and routing_map[arg.routing_id]:
-                        item = self.trace.get_item(arg.item_id)
-                        for source_id in routing_map[arg.routing_id]:
-                            item.add_source(source_id)
+                            arg.item.add_source(source_id)
                     elif arg.routing_id:
                         logging.warning(
                             "unmatched routing %s for operation %s output %s",
@@ -115,6 +131,12 @@ class TraceFactory:
                     logging.debug("operation %s has association %s",
                                   op_activity.operation_id, association.key)
                     logging.debug(json.dumps(association.object, indent=2))
+                    if is_upload(association):
+                        file_entity = self._get_file(
+                            upload_id=association.object[association.key]['id']
+                        )
+                        if file_entity:
+                            file_entity.add_generator(op_activity)
                     op_activity.add_attribute(association.object)
 
     def _create_items(self, *, item_id, generator=None):
@@ -148,6 +170,11 @@ class TraceFactory:
                         routing_matrix = get_routing_matrix(
                             association.object, association.key)
                     else:
+                        if is_upload(association):
+                            self._get_file(
+                                upload_id=association.object[association.key]['id'],
+                                source=item_entity
+                            )
                         item_entity.add_attribute(association.object)
 
         self._create_parts(entity=item_entity,
@@ -167,6 +194,11 @@ class TraceFactory:
                         source=item_entity
                     )
                 elif association.object:
+                    if is_upload(association):
+                        self._get_file(
+                            upload_id=association.object[association.key]['id'],
+                            source=item_entity
+                        )
                     logging.debug("item %s has association %s",
                                   item_entity.item_id, association.key)
                     item_entity.add_attribute(association.object)
@@ -330,7 +362,7 @@ class TraceFactory:
     def _get_upload(self, upload_id):
         uploads = self.session.Upload.where(
             {"id": upload_id},
-            {"methods": ["size", "name"]}
+            {"methods": ["size", "name", "job"]}
         )
         if uploads:
             return uploads[0]
@@ -395,6 +427,17 @@ def is_routing_matrix(association):
     return association.key in ['routing_matrix', 'part_data']
 
 
+def is_upload(association):
+    upload_keys = set([
+        'created_at', 'id', 'job_id', 'updated_at', 'upload_content_type',
+        'upload_file_name', 'upload_file_size', 'upload_updated_at'
+    ])
+    association_value = association.object[association.key]
+    result = isinstance(association_value,
+                        Mapping) and association_value.keys() == upload_keys
+    return result
+
+
 def get_routing_matrix(association_object, key):
     if key == 'routing_matrix':
         return association_object[key]['rows']
@@ -409,132 +452,3 @@ def well_coordinates(i: int, j: int):
 def get_routing_id(field_value):
     if field_value.field_type:
         return field_value.field_type.routing
-
-
-def file_generator_patch(trace):
-    """
-    For files of the trace with no generator, discovers the generating
-    operation by looking for an operation that has the source of the file as an
-    input, and the operation is a measurement.
-
-    Heuristic requires that the file have a single source, and that the
-    operation be tagged as a measurement.
-    """
-    for _, file_entity in trace.files.items():
-        if file_entity.generator:
-            continue
-
-        # if no source this hack wont work
-        sources = file_entity.sources
-        if not sources:
-            continue
-
-        # if the file has more than one source, this hack is harder
-        if len(sources) > 1:
-            msg = "File %s has more than one source. Bailing..."
-            logging.warning(msg, file_entity.file_id)
-            continue
-
-        source = next(iter(sources))
-        if source.item_type == 'part':
-            source = source.collection
-
-        ops = [op for op in trace.get_operations(source.item_id)
-               if op.is_measurement()]
-
-        # need exactly one
-        if not ops:
-            continue
-
-        if len(ops) > 1:
-            jobs = [job.id for job in [
-                max(op.operation.jobs, key=lambda job: job.updated_at) for op in ops]]
-            if jobs.count(jobs[0]) == len(jobs):
-                generator_id = jobs[0]
-                generator = JobActivity(job_id=generator_id, operations=ops)
-                trace.add_job(generator)
-                file_entity.add_generator(generator)
-                msg = "Adding job %s as generator for file %s"
-                logging.info(msg, generator_id, file_entity.file_id)
-            else:
-                msg = "Source %s %s for file %s is input to operations in jobs %s. Bailing..."
-                logging.warning(msg, source.item_type,
-                                source.item_id,
-                                file_entity.file_id,
-                                jobs)
-                continue
-        else:
-            generator = ops[0]
-            generator_id = generator.operation_id
-            msg = "Adding operation %s as generator for file %s"
-            logging.info(msg, generator_id, file_entity.file_id)
-            file_entity.add_generator(generator)
-
-
-def tag_measurement_operations(trace, measurements: List[str]):
-    """
-    Adds the measurement_operation attribute to any operation for an operation
-    type name that is in the list.
-
-    currently thinking this should only be applied to operations are strictly
-    measurement ops.
-    """
-    for _, operation in trace.operations.items():
-        operation_name = operation.operation_type.name
-        if operation_name in measurements:
-            operation.add_attribute({'measurement_operation': True})
-            operation.add_attribute(measurements[operation_name])
-
-
-def infer_part_source_from_collection(trace, part_entity):
-    """
-    Heuristic to add sources to a part of a collection that has collection as a
-    source and that collection has an object at the same coordinate.
-
-    Assumes a well-to-well transfer.
-    """
-    if part_entity.sources:
-        return
-
-    coll_entity = part_entity.collection
-    if not coll_entity.sources:
-        return
-
-    coll_sources = [
-        source for source in coll_entity.sources if source.is_collection()]
-
-    part_ref = part_entity.part_ref
-    for source in coll_sources:
-        source_id = source.item_id
-        source_part_id = source_id + '/' + part_ref
-        if trace.has_item(source_part_id):
-            part_entity.add_source(trace.get_item(source_part_id))
-            logging.info("use collection routing to add source %s to %s",
-                         source_part_id, part_entity.item_id)
-        else:
-            logging.debug("routing failed, source %s for %s does not exist",
-                          source_part_id, part_entity.item_id)
-
-
-def infer_collection_source_from_parts(trace, collection_entity):
-    """
-    Applies heuristic to add sources to the collection based on the sources of
-    the parts of the collection
-    """
-    if collection_entity.sources:
-        return
-
-    entity_id = collection_entity.item_id
-    parts = [entity for _, entity in trace.items.items()
-             if entity.is_part() and entity.collection.item_id == entity_id]
-
-    sources = set()
-    for part in parts:
-        for source in part.sources:
-            if source.is_part():
-                source = source.collection
-            if source.item_id not in sources:
-                logging.info("using part routing to add source %s to %s",
-                             source.item_id, entity_id)
-                collection_entity.add_source(source)
-                sources.add(source.item_id)
