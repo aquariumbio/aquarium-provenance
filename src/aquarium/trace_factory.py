@@ -14,7 +14,7 @@ from aquarium.provenance import (CollectionEntity,
                                  OperationParameter,
                                  PartEntity,
                                  PlanTrace)
-
+from util.plate import well_coordinates
 
 class TraceFactory:
     """
@@ -445,8 +445,7 @@ def get_routing_matrix(association_object, key):
         return association_object[key]
 
 
-def well_coordinates(i: int, j: int):
-    return chr(ord('A')+i) + str(j+1)
+
 
 
 def get_routing_id(field_value):

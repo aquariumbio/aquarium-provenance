@@ -3,7 +3,7 @@ import json
 import logging
 import os
 import sys
-from aquarium.provenance import check_trace
+from aquarium.trace_check import check_trace
 
 
 class UploadManager:

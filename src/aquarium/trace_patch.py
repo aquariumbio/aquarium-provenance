@@ -7,6 +7,7 @@ from aquarium.provenance import (
     PartEntity,
     PlanTrace
 )
+from util.plate import well_coordinates, coordinates_for
 from collections import defaultdict
 from typing import Dict, List
 
@@ -233,30 +234,25 @@ def fix_plate_reader_file_generators(
 def fix_resuspension_outgrowth_output(
         trace: PlanTrace,
         coll_entity: CollectionEntity):
-    """if not coll_entity.generator:  # wont work if no generator
-        return
-
-    generator = coll_entity.generator
-    if generator.operation_type.name != '2. Resuspension and Outgrowth':
-        return"""
-
     plates = [arg.item for arg in coll_entity.generator.inputs
               if arg.name == 'Yeast Plate']
-    source_map = {plate.sample: plate for plate in plates}
+    source_map = {plate.sample.id: plate for plate in plates}
 
     for part in coll_entity.parts:
         if part.sources:
             continue
-        if part.sample in source_map.keys():
-            source = source_map[part.sample]
+        if part.sample.id in source_map.keys():
+            source = source_map[part.sample.id]
             part.add_source(source)
             coll_entity.add_source(source)
-            logging.info("Adding %s %s as source for %s %s",
-                         source.item_type, source.item_id,
-                         part.item_type, part.item_id)
-        else:
-            logging.warning("Unable to infer source for %s %s",
-                            part.item_type, part.item_id)
+            log_source_add(source, part)
+        # TODO: figure out how to recognize error without catching IGEM plate
+
+
+def log_source_add(source, part):
+    logging.info("Adding %s %s as source for %s %s",
+                 source.item_type, source.item_id,
+                 part.item_type, part.item_id)
 
 
 def fix_collection_sources(trace: PlanTrace, collection: CollectionEntity):
@@ -267,11 +263,41 @@ def fix_collection_sources(trace: PlanTrace, collection: CollectionEntity):
     infer_collection_source_from_parts(trace, collection)
 
 
+def fix_synchronize_by_OD(trace: PlanTrace, part: PartEntity):
+    if len(part.collection.sources) > 1:
+        logging.warning("Collection for part has more than one source")
+        return
+
+    collection_source = next(iter(part.collection.sources))
+    row, col = coordinates_for(part.part_ref)
+    abs_part = row * 12 + col
+    abs_source = abs_part % 30
+    ref = well_coordinates(abs_source // 12, abs_source % 12)
+    source_id = "{}/{}".format(collection_source.item_id, ref)
+    source = trace.get_item(source_id)
+    if not source:
+        logging.warning("Computed source %s for part %s does not exist",
+                        source_id, part.item_id)
+        return
+
+    if source.sample.id != part.sample.id:
+        logging.warning("Mismatched sample for source %s and part %s",
+                        source_id, part.item_id)
+        return
+
+    part.add_source(source)
+    log_source_add(source, part)
+
+
 def fix_part_sources(trace: PlanTrace, part: PartEntity):
+    logging.debug("enter fix_part_sources with part %s",
+                  part.item_id)
     op_names = ['4. Measure OD and GFP']  # pass through operations
     generator_name = part.collection.generator.operation_type.name
     if generator_name in op_names:  # pass through op
         infer_part_source_from_collection(trace, part)
+    elif generator_name == '3. Synchronize by OD':
+        fix_synchronize_by_OD(trace, part)
 
 
 def log_missing_generator(collection: CollectionEntity):
@@ -288,6 +314,10 @@ def fix_item_provenance(trace: PlanTrace, stop_list: List[str]):
             log_missing_generator(collection)
             continue
         fix_collection_sources(trace, collection)
+
+    for _, item in trace.items.items():
+        if item.is_part() and not item.generator:
+            item.add_generator(item.collection.generator)
 
     parts = [part for part in no_sources if part.is_part()]
     for part in parts:
@@ -321,7 +351,7 @@ def fix_calibration_bead_provenance(
         file_list: List[FileEntity],
         bead_ops: List[OperationActivity]):
     # TODO: add error checking
-    if len(file_list) == len(bead_ops):
+    if len(file_list) == len(bead_ops):  # should be case for calibration beads
         ops_iter = iter(bead_ops)
         for file_entity in file_list:
             op = next(ops_iter)
@@ -332,7 +362,9 @@ def fix_calibration_bead_provenance(
             logging.info("Adding beads %s as source for file %s",
                          bead_item.item_id, file_entity.file_id)
     else:
-        logging.warning("mismatch of files and cytometry operations")
+        # TODO: need to handle case where BEAD_UPLOAD exists in plan
+        logging.warning("Mismatch of %s files and %s cytometry operations",
+                        len(file_list), len(bead_ops))
 
 
 def find_file_sources(trace: PlanTrace, no_source_files: List[FileEntity]):
