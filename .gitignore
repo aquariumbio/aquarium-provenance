@@ -2,3 +2,7 @@
 
 **/__pycache__
 src/resources.py
+src/**/*.log
+
+# probably don't want this for the long run, but until docker is fixed
+src/**/*.json
