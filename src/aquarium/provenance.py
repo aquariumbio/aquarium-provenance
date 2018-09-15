@@ -11,6 +11,7 @@ a collection has no sample but has an object_type; and
 a part of a collection has a sample but no object_type.
 """
 import abc
+import json
 import logging
 import os
 from collections import defaultdict, deque
@@ -40,6 +41,9 @@ class AttributesMixin(abc.ABC):
     def get_attribute(self, key):
         if key in self.attributes:
             return self.attributes[key]
+
+    def has_attribute(self, key):
+        return key in self.attributes.keys()
 
     def as_dict(self):
         attr_dict = dict()
@@ -96,6 +100,19 @@ class AbstractItemEntity(AbstractEntity, AttributesMixin):
         self.item_type = item_type
         super().__init__()
 
+    def __eq__(self, other):
+        return (isinstance(other, AbstractItemEntity) and
+                self.item_id == other.item_id)
+
+    def __hash__(self):
+        return hash(self.item_id)
+
+    def add_source(self, entity):
+        logging.debug("Adding source %s %s for %s %s",
+                      entity.item_type, entity.item_id,
+                      self.item_type, self.item_id)
+        super().add_source(entity)
+
     def as_dict(self):
         item_dict = dict()
         item_dict['item_id'] = self.item_id
@@ -103,6 +120,12 @@ class AbstractItemEntity(AbstractEntity, AttributesMixin):
         entity_dict = AbstractEntity.as_dict(self)
         attr_dict = AttributesMixin.as_dict(self)
         return {**item_dict, **{**entity_dict, **attr_dict}}
+
+    @abc.abstractmethod
+    def apply(self, visitor):
+        """
+        Apply visitor to this item-like object.
+        """
 
     def is_collection(self):
         return False
@@ -198,8 +221,9 @@ class PartEntity(AbstractItemEntity):
         item_dict = super().as_dict()
         item_dict['part_of'] = self.collection.item_id
         sample_dict = dict()
-        sample_dict['sample_id'] = str(self.sample.id)
-        sample_dict['sample_name'] = self.sample.name
+        if self.sample:
+            sample_dict['sample_id'] = str(self.sample.id)
+            sample_dict['sample_name'] = self.sample.name
         item_dict['sample'] = sample_dict
         return item_dict
 
@@ -215,25 +239,25 @@ class FileEntity(AbstractEntity):
     Note that a file should only have one source.
     """
 
-    def __init__(self, *, upload):
+    def __init__(self, *, upload, job):
         self.file_id = str(upload.id)
         self.name = upload.name
         self.size = upload.size
+        self.job = job
         self.upload = upload
         super().__init__()
 
-    def add_source(self, source):
-        # Add source ID as prefix to avoid name conflicts
-        # should only be one source for a file
-        if source in self.sources:
-            return
+    def __eq__(self, other):
+        return isinstance(other, FileEntity) and self.file_id == self.file_id
 
-        prefix = source.item_id
-        if source.is_part():
-            prefix = source.collection.item_id
-        self.name = "{}-{}".format(prefix, self.name)
+    def __hash__(self):
+        return hash(self.file_id)
 
-        super().add_source(source)
+    def add_source(self, entity):
+        logging.debug("Adding source %s %s for file %s",
+                      entity.item_type, entity.item_id,
+                      self.file_id)
+        super().add_source(entity)
 
     def apply(self, visitor):
         visitor.visit_file(self)
@@ -334,15 +358,45 @@ class JobActivity:
         return job_dict
 
 
+def select_job(operation):
+    if not operation:
+        return None
+    if not operation.job_associations:
+        logging.error("Operation %s has no job associations", operation.id)
+        return None
+
+    jobs = [association.job for association in operation.job_associations]
+    # TODO: make sure pick job that is completed, need access to job.status
+    return max(jobs, key=lambda job: job.updated_at)
+
+
 class OperationActivity(AttributesMixin):
 
-    def __init__(self, operation):
+    def __init__(self, *, id, operation_type, operation, start_time, end_time):
         self.type = 'operation'
-        self.operation_id = str(operation.id)
-        self.operation_type = operation.operation_type
+        self.operation_id = id
+        self.operation_type = operation_type
         self.operation = operation
+        self.start_time = start_time
+        self.end_time = end_time
         self.inputs = list()
         super().__init__()
+
+    @staticmethod
+    def create_from(operation):
+        job = select_job(operation)
+        start_time = None
+        end_time = None
+        if job:
+            state = json.loads(job.state)
+            start_time = state[0]['time']
+            end_time = state[-2]['time']
+        return OperationActivity(
+            id=str(operation.id),
+            operation_type=operation.operation_type,
+            operation=operation,
+            start_time=start_time,
+            end_time=end_time)
 
     def apply(self, visitor):
         visitor.visit_operation(self)
@@ -356,6 +410,9 @@ class OperationActivity(AttributesMixin):
                 return True
         return False
 
+    def get_named_inputs(self, name: str):
+        return [arg for arg in self.inputs if arg.name == name]
+
     def as_dict(self):
         op_dict = dict()
         op_dict['operation_id'] = self.operation_id
@@ -365,6 +422,8 @@ class OperationActivity(AttributesMixin):
         op_type['name'] = self.operation_type.name
         op_dict['operation_type'] = op_type
         op_dict['inputs'] = [input.as_dict() for input in self.inputs]
+        op_dict['start_time'] = self.start_time
+        op_dict['end_time'] = self.end_time
         attr_dict = AttributesMixin.as_dict(self)
         return {**op_dict, **attr_dict}
 
@@ -418,27 +477,48 @@ class PlanTrace(AttributesMixin):
     def has_operation(self, operation_id):
         return bool(operation_id) and str(operation_id) in self.operations
 
+    def get_collections(self):
+        return [item for _, item in self.items.items()
+                if item.is_collection()]
+
+    def get_items(self):
+        return [item for _, item in self.items.items() if item.is_item()]
+
+    def get_parts(self):
+        return [item for _, item in self.items.items() if item.is_part()]
+
     def get_item(self, item_id):
         return self.items[str(item_id)]
 
     def get_operation(self, operation_id):
         return self.operations[operation_id]
 
-    def get_operations(self, item_id):
+    def get_operations(self, *, input=None):
         """
-        Get operations that have the item as an input
+        Return the list of operations.
+        If input is an item ID, return all operations that have the item as an
+        input.
         """
-        return self.input_list[item_id]
+        if input:
+            return self.input_list[input]
+        else:
+            return [op for _, op in self.operations.items()]
 
     def get_file(self, file_id):
         return self.files[str(file_id)]
+
+    def get_files(self):
+        return [file for _, file in self.files.items()]
 
     def get_inputs(self):
         return [item for _, item in self.items.items()
                 if not item.sources and not item.generator and not item.is_part()]
 
     def apply(self, visitor):
-        visitor.visit_trace(self)
+        visitor.visit_plan(self)
+
+    def apply_all(self, visitor):
+        visitor.visit_plan(self)
         for _, operation in self.operations.items():
             operation.apply(visitor)
         for _, item in self.items.items():
@@ -470,7 +550,7 @@ class PlanTrace(AttributesMixin):
         if activity.is_job():
             trace.add_job(activity)
             for _, entity in self.files.items():
-                if entity.generator.is_job():
+                if entity.generator and entity.generator.is_job():
                     if entity.generator.job_id == activity.job_id:
                         trace.add_file(entity)
                         item_queue.extend(entity.sources)
