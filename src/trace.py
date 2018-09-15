@@ -9,7 +9,10 @@ from aquarium.trace_check import check_trace
 from aquarium.trace_factory import (TraceFactory)
 from resources import resources
 from aquarium.trace_upload import UploadManager, S3DumpProxy
-from aquarium.trace_patch import fix_trace
+from aquarium.trace_patch import (
+    create_trace_fix_visitor,
+    ChallengeProblemTraceVisitor
+)
 
 
 def find_igem_plate(trace):
@@ -60,6 +63,9 @@ def main():
     parser.add_argument("--no_fix",
                         action="store_true",
                         help="do not apply heuristic fixes to provenance")
+    # TODO: https://stackoverflow.com/a/41881271/3593355
+    parser.add_argument("--date",
+                        help="the date to use for the key, e.g., 201808")
     args = parser.parse_args()
 
     session = AqSession(
@@ -68,10 +74,13 @@ def main():
         resources['aquarium']['aquarium_url']
     )
 
+    base_filename = "{}-{}-provenance".format(
+        args.challenge_problem, args.plan_id)
+
     logging_level = logging.INFO
     if args.debug:
         logging_level = logging.DEBUG
-    log_filename = str(args.plan_id) + '-provenance.log'
+    log_filename = "{}.log".format(base_filename)
     logging.basicConfig(filename=log_filename,
                         filemode='w',
                         level=logging_level)
@@ -79,43 +88,38 @@ def main():
     plan = session.Plan.find(args.plan_id)
 
     logging.info("Creating provenance")
-    trace = TraceFactory.create_from(session=session, plan=plan)
-    trace.add_attribute({'lab': 'UW_BIOFAB'})
-
-    if args.challenge_problem == 'yg':
-        trace.add_attribute({'challenge_problem': 'YEAST_GATES'})
-    elif args.challenge_problem == 'nc':
-        trace.add_attribute({'challenge_problem': 'NOVEL_CHASSIS'})
-    elif args.challenge_problem == 'ps':
-        trace.add_attribute({'challenge_problem': 'PROTEIN_DESIGN'})
-
-    stop_list = [item.item_id for item in trace.get_inputs()]
-
-    if not args.no_fix:
-        logging.info("Applying heuristic fixes to provenance")
-        # TODO: figure out why have to exclude IGEM plate from fix stop list
-        fix_trace(trace, stop_list)
+    if args.no_fix:
+        fix_visitor = None
+    else:
+        fix_visitor = create_trace_fix_visitor()
+        fix_visitor.add_visitor(ChallengeProblemTraceVisitor(
+            labname='UW_BIOFAB',
+            challenge_problem=args.challenge_problem))
+    trace = TraceFactory.create_from(session=session,
+                                     plan=plan,
+                                     visitor=fix_visitor)
 
     if args.validate:
         logging.info("Checking provenance")
+        stop_list = [item.item_id for item in trace.get_inputs()]
         # IGEM plate is special case because produced but inputs not captured
         igem_plate = find_igem_plate(trace)
         if igem_plate:
             stop_list.append(igem_plate.item_id)
+        # TODO: make sure that cp and experiment ref attributes are set
         if not check_trace(trace=trace, stop_list=stop_list):
             print("Errors in provenance, check log for detail",
                   file=sys.stderr)
 
     if args.output:
-        filename = "{}-{}-provenance.json".format(
-            args.challenge_problem, args.plan_id)
+        filename = "{}.json".format(base_filename)
         with open(filename, 'w') as file:
             file.write(json.dumps(trace.as_dict(), indent=2))
 
     if args.upload or args.dump:
         manager = UploadManager.create_from(trace=trace)
         if args.dump:
-            print("Creating local dump")
+            print("Creating local dump of {}".format(args.plan_id))
             s3_client = S3DumpProxy(args.dump)
         else:
             print("Uploading to TACC")
@@ -128,11 +132,19 @@ def main():
                 config=Config(signature_version=resources['s3']['S3_SIG']),
                 region_name=resources['s3']['S3_REGION'],
             )
-        manager.configure(
-            s3=s3_client,
-            bucket='uploads',
-            basepath='biofab'
-        )
+        if args.date:
+            manager.configure(
+                s3=s3_client,
+                bucket='uploads',
+                basepath='biofab',
+                date_str=args.date
+            )
+        else:
+            manager.configure(
+                s3=s3_client,
+                bucket='uploads',
+                basepath='biofab'
+            )
         manager.upload(prov_only=args.prov_only)
 
 

@@ -22,12 +22,17 @@ def check_item(trace, entity, stop_list):
                 logging.warning(
                     "Part %s not in trace", part.item_id)
                 no_error = False
+    elif not entity.sample:
+        logging.warning("%s %s has no sample",
+                        entity.item_type, entity.item_id)
+        no_error = False
 
     if not entity.generator:
         logging.warning("%s %s has no generators",
                         entity.item_type, entity.item_id)
         no_error = False
     else:
+
         if entity.generator.is_job():
             if entity.generator.job_id not in trace.jobs:
                 msg = "job %s is a generator for %s %s but is not in trace"

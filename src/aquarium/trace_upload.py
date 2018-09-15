@@ -39,10 +39,11 @@ class UploadManager:
 
         return UploadManager(trace=trace, directory_map=dir_map)
 
-    def configure(self, *, s3, bucket, basepath):
+    def configure(self, *,
+                  s3, bucket, basepath,
+                  date_str=datetime.date.today().strftime('%Y%m')):
         self.s3 = s3
         self.bucket = bucket
-        date_str = datetime.date.today().strftime('%Y%m')
         self.basepath = os.path.join(*[basepath, date_str, self.trace.plan_id])
 
     def upload(self, *, prov_only=False):
@@ -55,7 +56,7 @@ class UploadManager:
 
     def _upload_directory(self, *, path, entity_map):
         for _, file_entity in entity_map.items():
-            # TODO: use upload.content_type
+            content_type = file_entity.upload.upload_content_type
             if file_entity.type == 'FCS':
                 content_type = 'application/octet-stream'
             elif file_entity.type == 'CSV':
