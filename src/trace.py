@@ -68,6 +68,8 @@ def main():
                         help="the date to use for the key, e.g., 201808")
     args = parser.parse_args()
 
+    print("plan {}".format(args.plan_id))
+    
     session = AqSession(
         resources['aquarium']['login'],
         resources['aquarium']['password'],
@@ -108,8 +110,8 @@ def main():
             stop_list.append(igem_plate.item_id)
         # TODO: make sure that cp and experiment ref attributes are set
         if not check_trace(trace=trace, stop_list=stop_list):
-            print("Errors in provenance, check log for detail",
-                  file=sys.stderr)
+            msg = "Errors in provenance for plan {}, check log for detail"
+            print(msg.format(args.plan_id), file=sys.stderr)
 
     if args.output:
         filename = "{}.json".format(base_filename)
@@ -122,7 +124,7 @@ def main():
             print("Creating local dump of {}".format(args.plan_id))
             s3_client = S3DumpProxy(args.dump)
         else:
-            print("Uploading to TACC")
+            print("Uploading plan {} to TACC".format(args.plan_id))
             s3_client = boto3.client(
                 's3',
                 endpoint_url="{}://{}".format(resources['s3']['S3_PROTO'],
@@ -146,7 +148,7 @@ def main():
                 basepath='biofab'
             )
         manager.upload(prov_only=args.prov_only)
-
+        print("plan {} complete".format(args.plan_id))
 
 if __name__ == "__main__":
     main()
