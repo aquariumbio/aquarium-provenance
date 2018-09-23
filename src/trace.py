@@ -69,7 +69,7 @@ def main():
     args = parser.parse_args()
 
     print("plan {}".format(args.plan_id))
-    
+
     session = AqSession(
         resources['aquarium']['login'],
         resources['aquarium']['password'],
@@ -149,6 +149,7 @@ def main():
             )
         manager.upload(prov_only=args.prov_only)
         print("plan {} complete".format(args.plan_id))
+
 
 if __name__ == "__main__":
     main()
