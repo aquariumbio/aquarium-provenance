@@ -11,7 +11,6 @@ a collection has no sample but has an object_type; and
 a part of a collection has a sample but no object_type.
 """
 import abc
-import json
 import logging
 import os
 from collections import defaultdict, deque
@@ -201,7 +200,8 @@ class CollectionEntity(AbstractItemEntity):
 
 class PartEntity(AbstractItemEntity):
 
-    def __init__(self, *, part_id: str, sample, collection: CollectionEntity):
+    def __init__(self, *,
+                 part_id: str, sample=None, collection: CollectionEntity):
         self.sample = sample
         self.collection = collection
         self.collection.add_part(self)
@@ -271,14 +271,14 @@ class FileEntity(AbstractEntity):
     type = property(file_type)
 
     def as_dict(self, *, path=None):
-        file_dict = super().as_dict()
+        entity_dict = super().as_dict()
+        file_dict = dict()
         file_dict['file_id'] = self.file_id
-        # TODO: figure out how to prefix name by generator based path when needed
         file_dict['filename'] = self.get_path(directory=path)
         file_dict['size'] = self.size
         if self.type:
             file_dict['type'] = self.type
-        return file_dict
+        return {**file_dict, **entity_dict}
 
     def get_path(self, *, directory=None):
         name = self.name
@@ -344,9 +344,12 @@ class OperationInput(OperationArgument):
 
 
 class JobActivity:
-    def __init__(self, *, job_id, operations):
-        self.job_id = job_id
+    def __init__(self, *, job, operations, start_time, end_time):
+        self.job_id = job.id
+        self.job = job
         self.operations = operations
+        self.start_time = start_time
+        self.end_time = end_time
 
     def is_job(self):
         return True
@@ -358,21 +361,10 @@ class JobActivity:
         return job_dict
 
 
-def select_job(operation):
-    if not operation:
-        return None
-    if not operation.job_associations:
-        logging.error("Operation %s has no job associations", operation.id)
-        return None
-
-    jobs = [association.job for association in operation.job_associations]
-    # TODO: make sure pick job that is completed, need access to job.status
-    return max(jobs, key=lambda job: job.updated_at)
-
-
 class OperationActivity(AttributesMixin):
 
-    def __init__(self, *, id, operation_type, operation, start_time, end_time):
+    def __init__(self, *, id, operation_type, operation,
+                 start_time=None, end_time=None):
         self.type = 'operation'
         self.operation_id = id
         self.operation_type = operation_type
@@ -381,22 +373,6 @@ class OperationActivity(AttributesMixin):
         self.end_time = end_time
         self.inputs = list()
         super().__init__()
-
-    @staticmethod
-    def create_from(operation):
-        job = select_job(operation)
-        start_time = None
-        end_time = None
-        if job:
-            state = json.loads(job.state)
-            start_time = state[0]['time']
-            end_time = state[-2]['time']
-        return OperationActivity(
-            id=str(operation.id),
-            operation_type=operation.operation_type,
-            operation=operation,
-            start_time=start_time,
-            end_time=end_time)
 
     def apply(self, visitor):
         visitor.visit_operation(self)
@@ -468,6 +444,9 @@ class PlanTrace(AttributesMixin):
         logging.debug("Adding job %s to trace", job.job_id)
         self.jobs[job.job_id] = job
 
+    def has_job(self, job_id):
+        return bool(job_id) and str(job_id) in self.jobs
+
     def has_item(self, item_id):
         return bool(item_id) and str(item_id) in self.items
 
@@ -489,6 +468,9 @@ class PlanTrace(AttributesMixin):
 
     def get_item(self, item_id):
         return self.items[str(item_id)]
+
+    def get_job(self, job_id):
+        return self.jobs[str(job_id)]
 
     def get_operation(self, operation_id):
         return self.operations[operation_id]
@@ -512,7 +494,9 @@ class PlanTrace(AttributesMixin):
 
     def get_inputs(self):
         return [item for _, item in self.items.items()
-                if not item.sources and not item.generator and not item.is_part()]
+                if not item.sources
+                and not item.generator
+                and not item.is_part()]
 
     def apply(self, visitor):
         visitor.visit_plan(self)
