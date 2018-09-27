@@ -345,7 +345,7 @@ class OperationInput(OperationArgument):
 
 class JobActivity:
     def __init__(self, *, job, operations, start_time, end_time):
-        self.job_id = job.id
+        self.job_id = str(job.id)
         self.job = job
         self.operations = operations
         self.start_time = start_time
@@ -366,7 +366,7 @@ class OperationActivity(AttributesMixin):
     def __init__(self, *, id, operation_type, operation,
                  start_time=None, end_time=None):
         self.type = 'operation'
-        self.operation_id = id
+        self.operation_id = str(id)
         self.operation_type = operation_type
         self.operation = operation
         self.start_time = start_time
