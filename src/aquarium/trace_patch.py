@@ -12,6 +12,7 @@ from aquarium.trace_visitor import ProvenanceVisitor, FactoryVisitor
 from aquarium.operation_visitor import (
     CytometerBeadCalibration,
     FlowCytometry96WellVisitor,
+    FlowCytometry96WellOldVisitor,
     MeasureODAndGFP,
     PlateReaderMeasurementVisitor,
     SynchByODVisitor,
@@ -20,7 +21,8 @@ from aquarium.operation_visitor import (
     NCLargeVolumeInductionVisitor,
     NCPlateReaderInductionVisitor,
     NCRecoveryVisitor,
-    NCSamplingVisitor)
+    NCSamplingVisitor,
+    YeastOvernightSuspension)
 from aquarium.part_visitor import AddPartsVisitor
 from typing import List
 
@@ -182,23 +184,33 @@ def group_files_by_job(file_list: List[FileEntity]):
 def create_trace_fix_visitor():
     """
     Creates visitor to apply heuristic fixes to a PlanTrace object.
+
+    Because some visitors propagate attributes, it is best to have them in
+    order they commonly occur in plans or there may be nothing to propagate.
     """
     visitor = FactoryVisitor()
 
     visitor.add_visitor(FixMessageVisitor())
     visitor.add_visitor(AddPartsVisitor())
     visitor.add_visitor(FileSourcePruningVisitor())
-    visitor.add_visitor(FlowCytometry96WellVisitor())
-    visitor.add_visitor(CytometerBeadCalibration())
+    # may involve adding media
+    visitor.add_visitor(YeastOvernightSuspension())
+    visitor.add_visitor(ResuspensionOutgrowthVisitor())
+    visitor.add_visitor(SynchByODVisitor())
+    #
     visitor.add_visitor(MeasureODAndGFP())
     visitor.add_visitor(PlateReaderMeasurementVisitor())
-    visitor.add_visitor(SynchByODVisitor())
-    visitor.add_visitor(ResuspensionOutgrowthVisitor())
+    #
     visitor.add_visitor(NCInoculationAndMediaVisitor())
     visitor.add_visitor(NCLargeVolumeInductionVisitor())
     visitor.add_visitor(NCSamplingVisitor())
     visitor.add_visitor(NCRecoveryVisitor())
     visitor.add_visitor(NCPlateReaderInductionVisitor())
+    #
+    visitor.add_visitor(FlowCytometry96WellVisitor())
+    visitor.add_visitor(FlowCytometry96WellOldVisitor())
+    visitor.add_visitor(CytometerBeadCalibration())
+    #
     visitor.add_visitor(CollectionSourceInferenceVisitor())
     visitor.add_visitor(PropagateReplicateVisitor())
     visitor.add_visitor(FileSourcePrefixVisitor())
