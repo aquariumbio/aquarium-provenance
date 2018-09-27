@@ -1,3 +1,4 @@
+import json
 import logging
 from collections import defaultdict
 from collections.abc import Mapping
@@ -109,8 +110,9 @@ class TraceFactory:
             return
 
         for association in associations:
-            if association.object:
+            if association.object and not association.upload:
                 logging.debug("Adding attribute %s", association.key)
+                logging.debug(json.dumps(association.object, indent=2))
                 prov_object.add_attribute(association.object)
 
     def _get_files(self, associations, visitor):
@@ -131,7 +133,6 @@ class TraceFactory:
             if upload_id:
                 file_entity = self.get_file(upload_id=upload_id)
                 if file_entity:
-
                     visitor.apply(association.key, file_entity)
 
     def _apply(self, visitor):
@@ -393,7 +394,7 @@ class PlanFileVisitor:
         self.trace = trace
 
     def apply(self, key, file_entity):
-        if key.endswith('BEAD_UPLOAD'):
+        if (key.endswith('BEAD_UPLOAD') or key.startswith('BEADS_')):
             self._add_bead_file(file_entity.file_id)
 
     def _add_bead_file(self, upload_id):

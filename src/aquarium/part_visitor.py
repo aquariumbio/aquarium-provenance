@@ -1,3 +1,4 @@
+import json
 import logging
 import re
 from aquarium.provenance import (CollectionEntity, PartEntity)
@@ -244,10 +245,32 @@ class AddPartsVisitor(ProvenanceVisitor):
 
     @staticmethod
     def get_upload_matrix(entity):
-        upload_matrix = None
+        """
+        Newer protocols that have the uppercase key 
+        """
         upload_attribute = entity.get_attribute('SAMPLE_UPLOADs')
         if upload_attribute:
-            upload_matrix = upload_attribute['upload_matrix']
+            return upload_attribute['upload_matrix']
+
+        upload_attribute = entity.get_attribute('SAMPLE_uploads')
+        if not upload_attribute:
+            return None
+
+        upload_list = sorted(upload_attribute,
+                             key=lambda upload: upload['upload_file_name'])
+
+        upload_matrix = list()
+        count = 0
+        row = list()
+        for upload in upload_list:
+            row.append(upload['id'])
+            count += 1
+            if count % 12 == 0:
+                upload_matrix.append(row)
+                row = list()
+        if count % 12 != 0:
+            upload_matrix.append(row)
+
         return upload_matrix
 
     @staticmethod

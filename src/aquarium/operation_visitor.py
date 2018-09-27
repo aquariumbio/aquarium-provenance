@@ -170,6 +170,11 @@ class MeasurementVisitor(OperationProvenanceVisitor):
         job_ops = [
             op for op in file_entity.job.operations if self.is_match(op)]
         if not job_ops:
+            logging.debug("Operation %s is not in generators %s for file %s",
+                          self.name,
+                          str([op.operation_id for op
+                               in file_entity.job.operations]),
+                          file_entity.file_id)
             return
 
         logging.debug("Visiting file %s from MeasurementVisitor",
@@ -238,11 +243,14 @@ class CytometryOperationVisitor(MeasurementVisitor):
         """
         super().visit_file(file_entity)
 
-        if file_entity.sources:
-            return
-
         logging.debug("Visiting file %s from CytometryOperationVisitor",
                       file_entity.file_id)
+
+        self.get_bead_source(file_entity)
+
+    def get_bead_source(self, file_entity: FileEntity):
+        if file_entity.sources:
+            return
 
         bead_file_list = self.trace.get_attribute('bead_files')
         if not bead_file_list:
@@ -325,16 +333,12 @@ class IGEMPlateGeneratorVisitor(OperationProvenanceVisitor):
         part.add_attribute({'volume': volume_str})
 
 
-class FlowCytometry96WellVisitor(CytometryOperationVisitor):
-    def __init__(self, trace=None):
-        super().__init__(
-            trace=trace,
-            name='Flow Cytometry 96 well',
-            measurement={
-                'measurement_type': 'FLOW',
-                'instrument_configuration': self.accuri_url(),
-                'channels': self.accuri_channels
-            })
+class FlowCytometry96WellAbstractVisitor(CytometryOperationVisitor):
+
+    @abc.abstractmethod
+    def __init__(self, *, trace, name, measurement):
+        self.job_map = dict()
+        super().__init__(trace=trace, name=name, measurement=measurement)
 
     def visit_file(self, file_entity: FileEntity):
         super().visit_file(file_entity)
@@ -356,11 +360,38 @@ class FlowCytometry96WellVisitor(CytometryOperationVisitor):
             file_entity.add_generator(op)
 
         plate_inputs = file_entity.generator.get_named_inputs('96 well plate')
+        if not plate_inputs:
+            return
+
         plate_arg = next(iter(plate_inputs))
         plate_item = plate_arg.item
         file_entity.add_source(plate_item)
         logging.info("Adding plate %s as source for file %s",
                      plate_item.item_id, file_entity.file_id)
+
+
+class FlowCytometry96WellVisitor(FlowCytometry96WellAbstractVisitor):
+    def __init__(self, trace=None):
+        super().__init__(
+            trace=trace,
+            name='Flow Cytometry 96 well',
+            measurement={
+                'measurement_type': 'FLOW',
+                'instrument_configuration': self.accuri_url(),
+                'channels': self.accuri_channels
+            })
+
+
+class FlowCytometry96WellOldVisitor(FlowCytometry96WellAbstractVisitor):
+    def __init__(self, trace=None):
+        super().__init__(
+            trace=trace,
+            name='Flow Cytometry 96 well (old)',
+            measurement={
+                'measurement_type': 'FLOW',
+                'instrument_configuration': self.accuri_url(),
+                'channels': self.accuri_channels
+            })
 
 
 class CytometerBeadCalibration(CytometryOperationVisitor):
@@ -382,6 +413,10 @@ class MeasureODAndGFP(MeasurementVisitor, PassthruOperationVisitor):
                              'measurement_type': 'PLATE_READER',
                              'instrument_configuration': self.synergy_url()
                          })
+
+    def visit_part(self, part):
+        if self.is_match(part.generator):
+            copy_attribute_from_source(part, 'media')
 
 
 class IGEMMeasurementVisitor(MeasurementVisitor, IGEMPlateGeneratorVisitor):
@@ -420,6 +455,34 @@ class PlateReaderMeasurementVisitor(
             if not measurement_type.value.startswith('CAL_'):
                 self.fix_collection_source(collection)
 
+    def visit_file(self, file_entity: FileEntity):
+        super().visit_file(file_entity)
+
+        if not file_entity.generator:
+            return
+
+        if self.is_match(file_entity.generator):
+            if not file_entity.sources:
+                self.add_calibration_file_source(file_entity)
+            elif len(file_entity.sources) > 1:
+                operation_id = file_entity.generator.operation_id
+                sources = [source for source in file_entity.sources
+                           if source.generator
+                           and source.generator.operation_id == operation_id]
+                if not sources:
+                    return
+                source = next(iter(sources))
+                file_entity.sources = [source]
+
+    def add_calibration_file_source(self, file_entity: FileEntity):
+        if not self.calibration_plate:
+            return
+
+        plate_id = PlateReaderMeasurementVisitor.get_plate_id(
+            file_entity.name)
+        if plate_id and plate_id == self.calibration_plate.item_id:
+            file_entity.add_source(self.calibration_plate)
+
     def visit_operation(self, operation: OperationActivity):
         if self.is_match(operation):
             measurement_args = operation.get_named_inputs(
@@ -430,6 +493,12 @@ class PlateReaderMeasurementVisitor(
                     return
 
                 self.calibration_plate.add_generator(operation)
+
+    @staticmethod
+    def get_plate_id(filename):
+        match = re.search('item(_|)([0-9]+)_', filename)
+        if match:
+            return match.group(2)
 
     def visit_plan(self, plan: PlanTrace):
         """
@@ -451,11 +520,10 @@ class PlateReaderMeasurementVisitor(
             logging.debug("No calibration plate found in plan associations")
             return
 
-        match = re.search('item(_|)([0-9]+)_', filename)
-        if not match:
+        plate_id = PlateReaderMeasurementVisitor.get_plate_id(filename)
+        if not plate_id:
             return
 
-        plate_id = match.group(2)
         self.factory.get_item(item_id=plate_id)
         self.calibration_plate = self.trace.get_item(plate_id)
 
@@ -494,8 +562,9 @@ class SynchByODVisitor(MeasurementVisitor):
         if self.is_match(part.generator):
             logging.debug("SynchByOD visit part %s operation %s",
                           part.item_id, self.name)
-            self.add_part_media(part)
+            add_media_attribute(part)
             self.fix_part_source(part)
+            copy_attribute_from_source(part, 'media')
 
     def fix_part_source(self, part: PartEntity):
         if len(part.collection.sources) > 1:
@@ -528,15 +597,62 @@ class SynchByODVisitor(MeasurementVisitor):
         part.add_source(source)
         log_source_add(source, part)
 
-    def add_part_media(self, part: PartEntity):
-        media_args = part.generator.get_named_inputs('Type of Media')
-        media_name = next(iter(media_args))
-        if media_name.value == 'YPAD':
-            part.add_attribute({'media': {'sample_id': '11767'}})
-        elif media_name.value == 'Synthetic_Complete':
-            part.add_attribute({'media': {'sample_id': '11769'}})
-        elif media_name.value == 'SC_Sorbitol':
-            part.add_attribute({'media': {'sample_id': '22798'}})
+
+def add_media_attribute(entity):
+    media_args = entity.generator.get_named_inputs('Type of Media')
+    if not media_args:
+        logging.debug("Operation %s has no media argument",
+                      entity.generator.operation_id)
+        return
+
+    media_arg = next(iter(media_args))
+    if media_arg.value == 'YPAD':
+        sample_id = '11767'
+    elif media_arg.value == 'Synthetic_Complete':
+        sample_id = '11769'
+    elif media_arg.value == 'SC':
+        sample_id = '11769'
+    elif media_arg.value == 'SC_Sorbitol':
+        sample_id = '22798'
+    elif media_arg.value == 'SC_Glycerol_EtOH':
+        sample_id = '22799'
+    else:
+        logging.error("Media type %s not recognized", media_arg.value)
+        return
+
+    logging.debug("Adding media type %s to %s %s",
+                  sample_id, entity.item_type, entity.item_id)
+    entity.add_attribute({'media': {'sample_id': sample_id}})
+
+
+def copy_attribute_from_source(entity, key):
+    if entity.has_attribute(key):
+        return
+
+    if not entity.sources:
+        return
+
+    for source in entity.sources:
+        attribute = source.get_attribute(key)
+        if attribute:
+            logging.debug('Copying attribute with key %s to %s %s',
+                          key, entity.item_type, entity.item_id)
+            entity.add_attribute({key: attribute})
+            return
+
+
+class YeastOvernightSuspension(OperationProvenanceVisitor):
+    def __init__(self, trace=None):
+        super().__init__(trace=trace, name='Yeast Overnight Suspension')
+
+    def visit_item(self, item_entity):
+        if not item_entity.generator:
+            return
+
+        logging.debug("Visiting item %s for Yeast Overnight Suspension",
+                      item_entity.item_id)
+        if self.is_match(item_entity.generator):
+            add_media_attribute(item_entity)
 
 
 class ResuspensionOutgrowthVisitor(IGEMPlateGeneratorVisitor):
@@ -555,15 +671,15 @@ class ResuspensionOutgrowthVisitor(IGEMPlateGeneratorVisitor):
             return
 
         if self.is_match(part.generator):
+            logging.debug("Visiting part %s with ResuspensionOutgrowthVisitor",
+                          part.item_id)
             self.fix_part_source(part)
             self.add_replicate_attribute(part)
+            add_media_attribute(part)
 
     def fix_part_source(self, part: PartEntity):
         if part.sources:
             return
-
-        logging.debug("ResuspensionOutgrowth visit part %s operation %s",
-                      part.item_id, self.name)
 
         source = None
         plate_args = part.generator.get_named_inputs('Yeast Plate')
@@ -770,6 +886,11 @@ class NCSamplingVisitor(OperationProvenanceVisitor):
 
         source_id = "{}/{}".format(source_collection.item_id,
                                    well_coordinates(i // 2, j % 6))
+        if not self.trace.has_item(source_id):
+            logging.debug("Source %s for part %s does not exist",
+                          source_id, part.item_id)
+            return
+
         source = self.trace.get_item(source_id)
         part.add_source(source)
         log_source_add(source, part)
