@@ -467,13 +467,19 @@ class PlanTrace(AttributesMixin):
         return [item for _, item in self.items.items() if item.is_part()]
 
     def get_item(self, item_id):
-        return self.items[str(item_id)]
+        item_key = str(item_id)
+        if item_key in self.items:
+            return self.items[item_key]
 
     def get_job(self, job_id):
-        return self.jobs[str(job_id)]
+        job_key = str(job_id)
+        if job_key in self.jobs:
+            return self.jobs[job_key]
 
     def get_operation(self, operation_id):
-        return self.operations[operation_id]
+        op_key = str(operation_id)
+        if op_key in self.operations:
+            return self.operations[op_key]
 
     def get_operations(self, *, input=None):
         """
@@ -487,7 +493,9 @@ class PlanTrace(AttributesMixin):
             return [op for _, op in self.operations.items()]
 
     def get_file(self, file_id):
-        return self.files[str(file_id)]
+        file_key = str(file_id)
+        if file_key in self.files:
+            return self.files[file_key]
 
     def get_files(self):
         return [file for _, file in self.files.items()]
