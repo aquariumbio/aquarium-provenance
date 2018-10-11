@@ -127,7 +127,7 @@ class TraceFactory:
                 upload_id = association.upload.id
             elif association.object:
                 if is_upload(association):
-                    upload_id = association.object[association.key]['id']
+                    upload_id = association.value()['id']
                     logging.debug("Association object %s is a file %s",
                                   association.key, upload_id)
             if upload_id:
@@ -367,7 +367,7 @@ def is_upload(association):
         'created_at', 'id', 'job_id', 'updated_at', 'upload_content_type',
         'upload_file_name', 'upload_file_size', 'upload_updated_at'
     ])
-    association_value = association.object[association.key]
+    association_value = association.value()
     result = isinstance(association_value,
                         Mapping) and association_value.keys() == upload_keys
     return result
