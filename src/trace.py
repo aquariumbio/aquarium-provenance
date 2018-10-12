@@ -86,10 +86,10 @@ def main():
     logging.basicConfig(filename=log_filename,
                         filemode='w',
                         level=logging_level)
+    logging.info("Gathering provenance for plan %s", args.plan_id)
 
     plan = session.Plan.find(args.plan_id)
 
-    logging.info("Creating provenance")
     if args.no_fix:
         fix_visitor = None
     else:
@@ -97,6 +97,7 @@ def main():
         fix_visitor.add_visitor(ChallengeProblemTraceVisitor(
             labname='UW_BIOFAB',
             challenge_problem=args.challenge_problem))
+    logging.debug("Creating trace object for plan %s", args.plan_id)
     trace = TraceFactory.create_from(session=session,
                                      plan=plan,
                                      visitor=fix_visitor)

@@ -1,4 +1,3 @@
-import json
 import logging
 import re
 from aquarium.provenance import (CollectionEntity, PartEntity)
