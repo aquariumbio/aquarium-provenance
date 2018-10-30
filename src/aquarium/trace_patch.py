@@ -145,14 +145,21 @@ class PropagateReplicateVisitor(ProvenanceVisitor):
         self.propagate_replicate(item)
 
     def propagate_replicate(self, item_entity):
-        if item_entity is None:
+        if not item_entity:
             return None
- 
+
+        logging.debug("searching for replicate ID at item %s",
+                      item_entity.item_id)
+
         if not self.trace.has_item(item_entity.item_id):
+            logging.debug("Replicate search: item %s is not in plan",
+                          item_entity.item_id)
             return None
 
         replicate = item_entity.get_attribute('replicate')
         if replicate:
+            logging.debug("Replicate search: item %s replicate %s",
+                          item_entity.item_id, replicate)
             return replicate
 
         if not item_entity.sample:
@@ -169,13 +176,18 @@ class PropagateReplicateVisitor(ProvenanceVisitor):
             if source.sample.id == item_entity.sample.id:
                 matching_source = source
         if not matching_source:
+            logging.debug("Replicate search: no matching source for item %s",
+                          item_entity.item_id)
             return None
 
         replicate = self.propagate_replicate(matching_source)
         if replicate:
+            logging.debug("Replicate search: item %s replicate %s",
+                          item_entity.item_id, replicate)
             item_entity.add_attribute({'replicate': replicate})
             return replicate
 
+        logging.debug("Replicate search: no replicate found")
         return None
 
 
