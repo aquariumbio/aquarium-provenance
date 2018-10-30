@@ -594,6 +594,11 @@ class SynchByODVisitor(MeasurementVisitor):
         logging.warning("Part %s has no sources in SynchByOD", part.item_id)
 
         collection_source = next(iter(part.collection.sources))
+        if not collection_source.generator:
+            logging.warning("Source %s has no generator",
+                            collection_source.generator)
+            return
+
         # Assumes preceded by operation that knows number of replicates and
         # input plates
         rep_list = collection_source.generator.get_named_inputs(
@@ -619,7 +624,7 @@ class SynchByODVisitor(MeasurementVisitor):
             # controls are added to plate after sample wells
             ref = part.part_ref
             # TODO: deal with controls from other sources
-        
+
         source_id = "{}/{}".format(collection_source.item_id, ref)
         source = self.trace.get_item(source_id)
         if not source:
