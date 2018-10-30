@@ -179,6 +179,9 @@ class PropagateReplicateVisitor(ProvenanceVisitor):
                           item_entity.item_id)
             return None
 
+        logging.debug("Replicate search: matching source %s",
+                      matching_source.item_id)
+
         replicate = self.propagate_replicate(matching_source)
         if replicate:
             logging.debug("Replicate search: item %s replicate %s",
