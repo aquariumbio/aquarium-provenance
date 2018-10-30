@@ -145,6 +145,12 @@ class PropagateReplicateVisitor(ProvenanceVisitor):
         self.propagate_replicate(item)
 
     def propagate_replicate(self, item_entity):
+        if item_entity is None:
+            return None
+ 
+        if not self.trace.has_item(item_entity.item_id):
+            return None
+
         replicate = item_entity.get_attribute('replicate')
         if replicate:
             return replicate
@@ -152,7 +158,7 @@ class PropagateReplicateVisitor(ProvenanceVisitor):
         if not item_entity.sample:
             logging.error("%s %s has no sample",
                           item_entity.item_type, item_entity.item_id)
-            return
+            return None
 
         matching_source = None
         for source in item_entity.sources:
