@@ -169,14 +169,11 @@ class PropagateReplicateVisitor(ProvenanceVisitor):
 
         matching_source = None
         for source in item_entity.sources:
-            if not source.sample:
-                logging.error("source %s %s has no sample",
-                              source.item_type, source.item_id)
-                return None
-            if source.sample.id == item_entity.sample.id:
-                matching_source = source
-                break
-                
+            if source.sample:
+                if source.sample.id == item_entity.sample.id:
+                    matching_source = source
+                    break
+
         if not matching_source:
             logging.debug("Replicate search: no matching source for item %s",
                           item_entity.item_id)
