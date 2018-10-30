@@ -170,6 +170,7 @@ class PropagateReplicateVisitor(ProvenanceVisitor):
         matching_source = None
         for source in item_entity.sources:
             if source.sample:
+                logging.debug("Checking source %s against item %s", source.item_id, item_entity.item_id)
                 if source.sample.id == item_entity.sample.id:
                     matching_source = source
                     break
