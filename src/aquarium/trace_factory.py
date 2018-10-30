@@ -245,7 +245,8 @@ class TraceFactory:
                                           arg.routing_id, operation.id,
                                           arg.item_id)
                             for source_id in routing_map[arg.routing_id]:
-                                arg.item.add_source(source_id)
+                                if arg.item.item_id != source_id:
+                                    arg.item.add_source(source_id)
                         else:
                             logging.warning("Unmatched "+suffix,
                                             arg.routing_id, operation.id,
