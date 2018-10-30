@@ -20,7 +20,7 @@ class OperationProvenanceVisitor(ProvenanceVisitor):
         super().__init__(trace)
 
     def is_match(self, generator):
-        if not generator:
+        if generator is None:
             return False
 
         # TODO: can we not check operation type of the job?
