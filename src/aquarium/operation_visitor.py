@@ -765,6 +765,8 @@ class ResuspensionOutgrowthVisitor(IGEMPlateGeneratorVisitor):
         logging.debug("Part %s has no source_reference attribute",
                       part.item_id)
 
+        source_list = [source.item_id for source in part.sources]
+        logging.debug("sources %s", str(source_list))
         destination = part.get_attribute('destination')
         if destination:
             logging.debug("destination:\n%s", json.dumps(destination))
