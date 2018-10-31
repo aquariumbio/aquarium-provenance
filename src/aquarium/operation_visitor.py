@@ -719,7 +719,7 @@ class ResuspensionOutgrowthVisitor(IGEMPlateGeneratorVisitor):
             logging.debug("Visiting part %s with ResuspensionOutgrowthVisitor",
                           part.item_id)
             self.fix_part_source(part)
-            self.add_replicate_attribute(part)
+            self.add_colony_attribute(part)
             add_media_attribute(part)
 
     def fix_part_source(self, part: PartEntity):
@@ -737,19 +737,36 @@ class ResuspensionOutgrowthVisitor(IGEMPlateGeneratorVisitor):
             part.add_source(source)
             log_source_add(source, part)
 
-    def add_replicate_attribute(self, part: PartEntity):
+    def add_colony_attribute(self, part: PartEntity):
+        # newest versions of protocol should have a source attribute
+        source_attribute = part.get_attribute('source')
+        if source_attribute:
+            logging.error(
+                "Part %s has source attribute, but not yet implemented",
+                part.item_id
+            )
+            return
+
+        # older versions of protocols used a source_reference
         source_reference = part.get_attribute('source_reference')
-        if not source_reference:
-            return
-        if not source_reference.startswith('Yeast Plate'):
-            return
+        if source_reference:
+            if source_reference.startswith('Yeast Plate'):
+                logging.debug("Adding colony from source_reference of %s",
+                              part.item_id)
+                source_components = source_reference.split('/')
+                if len(source_components) != 4:
+                    return
 
-        source_components = source_reference.split('/')
-        if len(source_components) != 4:
-            return
+                replicate_id = source_components[3][1:]
+                part.add_attribute({'replicate': replicate_id})
+                return
+        logging.debug("Part %s has no source_reference attribute",
+                      part.item_id)
 
-        replicate_id = source_components[3][1:]
-        part.add_attribute({'replicate': replicate_id})
+        destination = part.get_attribute('destination')
+        if destination:
+            logging.debug("destination:%n%s", json.dumps(destination))
+            return
 
     def fix_file_generators(self, file_entity: FileEntity):
         """
