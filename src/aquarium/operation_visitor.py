@@ -1,4 +1,5 @@
 import abc
+import json
 import logging
 import re
 
@@ -765,7 +766,7 @@ class ResuspensionOutgrowthVisitor(IGEMPlateGeneratorVisitor):
 
         destination = part.get_attribute('destination')
         if destination:
-            logging.debug("destination:%n%s", json.dumps(destination))
+            logging.debug("destination:\n%s", json.dumps(destination))
             return
 
     def fix_file_generators(self, file_entity: FileEntity):
