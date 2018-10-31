@@ -772,9 +772,16 @@ class ResuspensionOutgrowthVisitor(IGEMPlateGeneratorVisitor):
 
         source_item = next(iter(part.sources))
         if source_item:
-            destination = source_item.get_attribute('destination')
-            if destination:
-                logging.debug("destination:\n%s", json.dumps(destination))
+            dest_list = source_item.get_attribute('destination')
+            if dest_list:
+                row, column = coordinates_for(part.part_ref)
+                collection_id = part.collection.item_id
+                dest = [obj for obj in dest_list if (
+                    obj['id'] == collection_id
+                    and obj['row'] == row
+                    and obj['column'] == column
+                )]
+                logging.debug("destination:\n%s", json.dumps(dest))
                 return
 
     def fix_file_generators(self, file_entity: FileEntity):
