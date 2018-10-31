@@ -777,7 +777,7 @@ class ResuspensionOutgrowthVisitor(IGEMPlateGeneratorVisitor):
                 row, column = coordinates_for(part.part_ref)
                 collection_id = part.collection.item_id
                 dest = [obj for obj in dest_list if (
-                    obj['id'] == collection_id
+                    str(obj['id']) == collection_id
                     and obj['row'] == row
                     and obj['column'] == column
                 )]
