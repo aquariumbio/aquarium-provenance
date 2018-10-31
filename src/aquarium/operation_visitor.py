@@ -739,6 +739,7 @@ class ResuspensionOutgrowthVisitor(IGEMPlateGeneratorVisitor):
             log_source_add(source, part)
 
     def add_colony_attribute(self, part: PartEntity):
+        logging.debug("Searching for colony attribute on part %s", part.item_id)
         # newest versions of protocol should have a source attribute
         source_attribute = part.get_attribute('source')
         if source_attribute:
