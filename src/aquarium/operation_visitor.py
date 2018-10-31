@@ -184,8 +184,9 @@ class MeasurementVisitor(OperationProvenanceVisitor):
                           file_entity.file_id)
             return
 
-        logging.debug("Visiting file %s from MeasurementVisitor",
-                      file_entity.file_id)
+        logging.debug("Visiting file %s from MeasurementVisitor with ops %s",
+                      file_entity.file_id,
+                      str([op.operation_id for op in job_ops]))
 
         ops = job_ops
         source = MeasurementVisitor.get_file_source(file_entity)
