@@ -765,12 +765,16 @@ class ResuspensionOutgrowthVisitor(IGEMPlateGeneratorVisitor):
         logging.debug("Part %s has no source_reference attribute",
                       part.item_id)
 
-        source_list = [source.item_id for source in part.sources]
-        logging.debug("sources %s", str(source_list))
-        destination = part.get_attribute('destination')
-        if destination:
-            logging.debug("destination:\n%s", json.dumps(destination))
+        if len(part.sources) > 1:
+            logging.debug("Part %s has more than one source", part.item_id)
             return
+        
+        source_item = next(iter(part.sources))
+        if source_item:
+            destination = source_item.get_attribute('destination')
+            if destination:
+                logging.debug("destination:\n%s", json.dumps(destination))
+                return
 
     def fix_file_generators(self, file_entity: FileEntity):
         """
