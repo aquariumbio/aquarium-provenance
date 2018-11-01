@@ -754,8 +754,9 @@ class ResuspensionOutgrowthVisitor(IGEMPlateGeneratorVisitor):
         source_reference = part.get_attribute('source_reference')
         if source_reference:
             if source_reference.startswith('Yeast Plate'):
-                logging.debug("Adding colony from source_reference of %s",
-                              part.item_id)
+                logging.debug("Adding colony from source_reference of %s from %s",
+                              part.item_id,
+                              json.dumps(source_reference, indent=2))
                 source_components = source_reference.split('/')
                 if len(source_components) != 4:
                     return
