@@ -764,8 +764,10 @@ class ResuspensionOutgrowthVisitor(IGEMPlateGeneratorVisitor):
                 source_id = source_components[1]
                 colony = source_components[3][1:]
                 part.add_attribute({
-                    'yeast_plate': source_id,
-                    'colony': colony
+                    'source_colony': {
+                        'yeast_plate': source_id,
+                        'colony': colony
+                    }
                 })
                 return
         logging.debug("Part %s has no source_reference attribute",
@@ -789,8 +791,10 @@ class ResuspensionOutgrowthVisitor(IGEMPlateGeneratorVisitor):
                 if len(dest_list) == 1:
                     dest = next(iter(dest_list))
                     part.add_attribute({
-                        'yeast_plate': source_item.item_id,
-                        'colony': dest['source_colony']
+                        'source_colony': {
+                            'yeast_plate': source_item.item_id,
+                            'colony': dest['source_colony']
+                        }
                     })
 
     def fix_file_generators(self, file_entity: FileEntity):
