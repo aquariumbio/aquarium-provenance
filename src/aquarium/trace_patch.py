@@ -133,67 +133,6 @@ class FileSourcePrefixVisitor(ProvenanceVisitor):
                       file_entity.file_id, file_entity.name)
 
 
-class PropagateReplicateVisitor(ProvenanceVisitor):
-
-    def __init__(self, trace=None):
-        super().__init__(trace)
-
-    def visit_part(self, part: PartEntity):
-        self.propagate_replicate(part)
-
-    def visit_item(self, item: ItemEntity):
-        self.propagate_replicate(item)
-
-    def propagate_replicate(self, item_entity):
-        if not item_entity:
-            return None
-
-        logging.debug("searching for replicate ID at item %s",
-                      item_entity.item_id)
-
-        if not self.trace.has_item(item_entity.item_id):
-            logging.debug("Replicate search: item %s is not in plan",
-                          item_entity.item_id)
-            return None
-
-        replicate = item_entity.get_attribute('replicate')
-        if replicate:
-            logging.debug("Replicate search: item %s replicate %s",
-                          item_entity.item_id, replicate)
-            return replicate
-
-        if not item_entity.sample:
-            logging.error("%s %s has no sample",
-                          item_entity.item_type, item_entity.item_id)
-            return None
-
-        matching_source = None
-        for source in item_entity.sources:
-            if source.sample:
-                logging.debug("Checking source %s against item %s", source.item_id, item_entity.item_id)
-                if source.sample.id == item_entity.sample.id:
-                    matching_source = source
-                    break
-
-        if not matching_source:
-            logging.debug("Replicate search: no matching source for item %s",
-                          item_entity.item_id)
-            return None
-
-        logging.debug("Replicate search: matching source %s",
-                      matching_source.item_id)
-
-        replicate = self.propagate_replicate(matching_source)
-        if replicate:
-            logging.debug("Replicate search: item %s replicate %s",
-                          item_entity.item_id, replicate)
-            item_entity.add_attribute({'replicate': replicate})
-            return replicate
-
-        logging.debug("Replicate search: no replicate found")
-        return None
-
-
 def group_files_by_job(file_list: List[FileEntity]):
     file_map = defaultdict(list)
     for file in file_list:
