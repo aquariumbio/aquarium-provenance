@@ -1,61 +1,40 @@
-import datetime
 import json
 import logging
 import os
-import sys
-from aquarium.trace_check import check_trace
 
 
 class UploadManager:
 
-    def __init__(self, *, trace, directory_map):
+    def __init__(self, *, trace, basepath=None, bucket=None, s3=None):
         self.trace = trace
-        self.directory_map = directory_map
         self.basepath = None
         self.bucket = None
         self.s3 = None
 
-    @staticmethod
-    def create_from(*, trace):
-        dir_map = dict()
-        for _, file_entity in trace.files.items():
-            if not file_entity.generator:
-                continue
+    def configure(self, *, s3=None, bucket=None, basepath=None):
+        if s3:
+            self.s3 = s3
+        if bucket:
+            self.bucket = bucket
+        if basepath:
+            self.basepath = basepath
 
-            if file_entity.generator.is_job():
-                generator_id = file_entity.generator.job_id
-                gen_name = "job_{}".format(generator_id)
-            else:
-                generator_id = file_entity.generator.operation_id
-                gen_name = "op_{}".format(generator_id)
-            if gen_name not in dir_map:
-                logging.info("Adding trace for %s", gen_name)
-                measurement_trace = trace.project_from(
-                    file_entity.generator)
-                dir_map[gen_name] = measurement_trace
-                if not check_trace(trace=measurement_trace):
-                    print("provenance error for {}".format(gen_name),
-                          file=sys.stderr)
-
-        return UploadManager(trace=trace, directory_map=dir_map)
-
-    def configure(self, *,
-                  s3, bucket, basepath,
-                  date_str=datetime.date.today().strftime('%Y%m')):
-        self.s3 = s3
-        self.bucket = bucket
-        self.basepath = os.path.join(*[basepath, date_str, self.trace.plan_id])
-
-    def upload(self, *, prov_only=False):
+    def upload(self, *, activity, prov_only=False):
         self._put_provenance(path=self.basepath, trace=self.trace)
-        for dir_name, trace in self.directory_map.items():
-            dest_path = os.path.join(self.basepath, dir_name)
-            if not prov_only:
-                self._upload_directory(path=dest_path, entity_map=trace.files)
-            self._put_provenance(path=dest_path, trace=trace)
+        if prov_only:
+            return
 
-    def _upload_directory(self, *, path, entity_map):
-        for _, file_entity in entity_map.items():
+        activity_id = activity.get_activity_id()
+        file_list = self.trace.get_files(generator=activity)
+        if not file_list:
+            logging.error("No files for generator %s", activity_id)
+            return
+
+        dest_path = os.path.join(self.basepath, activity_id)
+        self._upload_directory(path=dest_path, file_list=file_list)
+
+    def _upload_directory(self, *, path, file_list):
+        for file_entity in file_list:
             content_type = file_entity.upload.upload_content_type
             if file_entity.type == 'FCS':
                 content_type = 'application/octet-stream'
