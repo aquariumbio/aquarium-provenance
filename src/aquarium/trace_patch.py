@@ -99,7 +99,7 @@ class FileSourcePruningVisitor(ProvenanceVisitor):
         file_entity.sources = [source]
 
 
-class FileSourcePrefixVisitor(ProvenanceVisitor):
+class FilePrefixVisitor(ProvenanceVisitor):
     """
     A FileVisitor that adds the file ID as a prefix to the file name.
 
@@ -155,7 +155,7 @@ def create_trace_fix_visitor():
     visitor.add_visitor(CytometerBeadCalibration())
     #
     visitor.add_visitor(CollectionSourceInferenceVisitor())
-    visitor.add_visitor(FileSourcePrefixVisitor())
+    visitor.add_visitor(FilePrefixVisitor())
 
     return visitor
 
