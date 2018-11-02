@@ -172,7 +172,6 @@ def create_trace_fix_visitor():
     visitor.add_visitor(CytometerBeadCalibration())
     #
     visitor.add_visitor(CollectionSourceInferenceVisitor())
-    visitor.add_visitor(PropagateReplicateVisitor())
     visitor.add_visitor(FileSourcePrefixVisitor())
 
     return visitor
