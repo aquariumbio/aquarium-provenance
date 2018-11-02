@@ -101,8 +101,7 @@ class FileSourcePruningVisitor(ProvenanceVisitor):
 
 class FileSourcePrefixVisitor(ProvenanceVisitor):
     """
-    A FileVisitor that adds the ID for the source of a file as a prefix to the
-    file name.
+    A FileVisitor that adds the file ID as a prefix to the file name.
 
     Used to avoid name conflicts in situations where files with the same name
     may be written to the same directory.
@@ -118,16 +117,8 @@ class FileSourcePrefixVisitor(ProvenanceVisitor):
     def visit_file(self, file_entity: FileEntity):
         logging.debug("Visiting file %s %s to add prefix",
                       file_entity.file_id, file_entity.name)
-        if not file_entity.sources:
-            return
 
-        if len(file_entity.sources) > 1:
-            return
-
-        source = next(iter(file_entity.sources))
-        prefix = source.item_id
-        if source.is_part():
-            prefix = source.collection.item_id
+        prefix = file_entity.file_id
         file_entity.name = "{}-{}".format(prefix, file_entity.name)
         logging.debug("changing name of %s to %s",
                       file_entity.file_id, file_entity.name)
