@@ -133,14 +133,6 @@ class FileSourcePrefixVisitor(ProvenanceVisitor):
                       file_entity.file_id, file_entity.name)
 
 
-def group_files_by_job(file_list: List[FileEntity]):
-    file_map = defaultdict(list)
-    for file in file_list:
-        job_id = str(file.upload.job.id)
-        file_map[job_id].append(file)
-    return file_map
-
-
 def create_trace_fix_visitor():
     """
     Creates visitor to apply heuristic fixes to a PlanTrace object.
