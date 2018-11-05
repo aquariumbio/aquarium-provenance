@@ -40,10 +40,17 @@ class UploadManager:
                 content_type = 'application/octet-stream'
             elif file_entity.type == 'CSV':
                 content_type = 'text/csv'
-            self._put_object(path=path,
-                             filename=file_entity.name,
-                             file_object=file_entity.upload.data,
-                             content_type=content_type)
+            try:
+                self._put_object(path=path,
+                                 filename=file_entity.name,
+                                 file_object=file_entity.upload.data,
+                                 content_type=content_type)
+            except ConnectionError:
+                logging.error(
+                    "Upload of file %s (%s) failed due to closed connection",
+                    file_entity.file_id, file_entity.name
+                )
+                raise
 
     def _put_object(self, *, path, filename, file_object, content_type):
         key_path = os.path.join(path, filename)
