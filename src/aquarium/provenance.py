@@ -2,10 +2,10 @@
 Aquarium provenance classes derived using pydent models.
 See TraceFactory.create_from to load.
 
-Loosely based on provenance ontology, which includes activities, agents,
-and entities.
+Based on PROV-DM (https://www.w3.org/TR/prov-dm/), which defines provenance
+in terms of activities, agents, and entities.
 
-Note that I punted on properly modeling which kinds of entities in Aquarium.
+Note that I punted on properly modeling the kinds of entities in Aquarium.
 An Item has a sample and object_type;
 a collection has no sample but has an object_type; and
 a part of a collection has a sample but no object_type.
@@ -590,8 +590,11 @@ class PlanTrace(AttributesMixin):
         trace_dict['jobs'] = [job.as_dict() for _, job in self.jobs.items()]
         trace_dict['items'] = [item.as_dict()
                                for _, item in self.items.items()]
-        trace_dict['files'] = [file.as_dict(path=file.generator.get_activity_id())
-                               for _, file in self.files.items()]
+        trace_dict['files'] = [
+            file.as_dict(path=file.generator.get_activity_id())
+            for _, file in self.files.items()
+            if file.generator
+        ]
         super_dict = super().as_dict()
         return {**trace_dict, **super_dict}
 
