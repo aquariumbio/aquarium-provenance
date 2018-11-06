@@ -596,9 +596,11 @@ class SynchByODVisitor(MeasurementVisitor):
         logging.warning("Part %s has no sources in SynchByOD", part.item_id)
 
         if part.part_ref == 'H7':
-            logging.warning("Part %s is positive sytox wildtype control", part.item_id)
+            logging.warning(
+                "Part %s is positive sytox wildtype control", part.item_id)
         elif part.part_ref == 'H8':
-            logging.warning("Part %s is negative sytox wildtype control", part.item_id)
+            logging.warning(
+                "Part %s is negative sytox wildtype control", part.item_id)
         elif part.part_ref == 'H9':
             logging.warning("Part %s is positive gfp control", part.item_id)
 
@@ -635,6 +637,8 @@ class SynchByODVisitor(MeasurementVisitor):
                 # TODO: attribute should have another name
                 od_index = abs_part // num_source_parts
                 part.add_attribute({'od600': od_list[od_index]})
+                logging.debug("Adding attribute od600 with value %s to part %s",
+                              od_list[od_index], part.item_id)
         else:
             # controls are added to plate after sample wells
             ref = part.part_ref
