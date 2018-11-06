@@ -595,6 +595,13 @@ class SynchByODVisitor(MeasurementVisitor):
 
         logging.warning("Part %s has no sources in SynchByOD", part.item_id)
 
+        if part.part_ref == 'H7':
+            logging.warning("Part %s is positive sytox wildtype control", part.item_id)
+        elif part.part_ref == 'H8':
+            logging.warning("Part %s is negative sytox wildtype control", part.item_id)
+        elif part.part_ref == 'H9':
+            logging.warning("Part %s is positive gfp control", part.item_id)
+
         collection_source = next(iter(part.collection.sources))
         if not collection_source.generator:
             logging.warning("Source %s has no generator",
@@ -607,7 +614,9 @@ class SynchByODVisitor(MeasurementVisitor):
             'Biological Replicates')
         plate_list = collection_source.generator.get_named_inputs(
             'Yeast Plate')
-        if not rep_list or not plate_list:
+        od_list = collection_source.generator.get_named_inputs('Final OD')
+
+        if not rep_list or not plate_list or not od_list:
             logging.warning("Unable to compute number of parts for source %s",
                             collection_source.item_id)
             return
@@ -619,9 +628,13 @@ class SynchByODVisitor(MeasurementVisitor):
         row, col = coordinates_for(part.part_ref)
         abs_part = row * 12 + col
 
-        if abs_part < num_source_parts * 3:
+        if abs_part < num_source_parts * len(od_list):
             abs_source = abs_part % num_source_parts
             ref = well_coordinates(abs_source // 12, abs_source % 12)
+            if not part.has_attribute('od600'):
+                # TODO: attribute should have another name
+                od_index = abs_part // num_source_parts
+                part.add_attribute({'od600': od_list[od_index]})
         else:
             # controls are added to plate after sample wells
             ref = part.part_ref
