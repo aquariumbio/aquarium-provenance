@@ -616,7 +616,7 @@ class SynchByODVisitor(MeasurementVisitor):
             'Biological Replicates')
         plate_list = collection_source.generator.get_named_inputs(
             'Yeast Plate')
-        od_list = collection_source.generator.get_named_inputs('Final OD')
+        od_list = part.collection.generator.get_named_inputs('Final OD')
 
         if not rep_list or not plate_list or not od_list:
             logging.warning("Unable to compute number of parts for source %s",
