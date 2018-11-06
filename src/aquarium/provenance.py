@@ -261,6 +261,7 @@ class FileEntity(AbstractEntity):
         self.size = upload.size
         self.job = job
         self.upload = upload
+        self.check_sum = None
         super().__init__()
 
     def __eq__(self, other):
@@ -294,6 +295,8 @@ class FileEntity(AbstractEntity):
         file_dict['size'] = self.size
         if self.type:
             file_dict['type'] = self.type
+        if self.check_sum:
+            file_dict['sha256'] = self.check_sum
         return {**file_dict, **entity_dict}
 
     def get_path(self, *, directory=None):
