@@ -617,7 +617,7 @@ class SynchByODVisitor(MeasurementVisitor):
         plate_list = collection_source.generator.get_named_inputs(
             'Yeast Plate')
         od_param_list = part.collection.generator.get_named_inputs('Final OD')
-        
+
         if not rep_list or not plate_list or not od_param_list:
             logging.warning("Unable to compute number of parts for source %s",
                             collection_source.item_id)
@@ -631,7 +631,8 @@ class SynchByODVisitor(MeasurementVisitor):
         abs_part = row * 12 + col
 
         od_param_str = next(iter(od_param_list)).value
-        od_hash = json.loads(re.sub(r"final\_ODs?", r'"final_OD"', od_param_str))
+        od_hash = json.loads(
+            re.sub(r"final\_ODs?", r'"final_OD"', od_param_str))
         od_list = od_hash['final_OD']
 
         if abs_part < num_source_parts * len(od_list):
@@ -644,6 +645,7 @@ class SynchByODVisitor(MeasurementVisitor):
                 logging.debug("Adding attribute od600 with value %s to part %s",
                               od_list[od_index], part.item_id)
         else:
+
             # controls are added to plate after sample wells
             ref = part.part_ref
             # TODO: deal with controls from other sources
