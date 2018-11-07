@@ -631,7 +631,7 @@ class SynchByODVisitor(MeasurementVisitor):
         abs_part = row * 12 + col
 
         od_param_str = next(iter(od_param_list)).value
-        od_hash = json.loads(re.sub(r"final\_OD", r'"final_OD"', od_param_str))
+        od_hash = json.loads(re.sub(r"final\_ODs?", r'"final_OD"', od_param_str))
         od_list = od_hash['final_OD']
 
         if abs_part < num_source_parts * len(od_list):
