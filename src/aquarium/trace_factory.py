@@ -286,17 +286,17 @@ class TraceFactory:
                                             arg.routing_id, operation.id,
                                             arg.item_id)
 
-    def get_external_file(self, *, name):
+    def get_external_file(self, *, name) -> ExternalFileEntity:
         if name in self.external_files:
             return self.external_files['name']
-        
+
         file_entity = ExternalFileEntity(name=name)
         self.trace.add_file(file_entity)
         self.external_files[name] = file_entity
-        
+
         return file_entity
 
-    def get_file(self, *, upload_id):
+    def get_file(self, *, upload_id) -> FileEntity:
         """
         Returns the file entity for an upload associated with a plan.
         If the entity is not currently in the trace, creates it.
@@ -333,7 +333,7 @@ class TraceFactory:
         self.trace.add_item(item_entity)
         return item_entity
 
-    def get_operation(self, operation):
+    def get_operation(self, operation) -> OperationActivity:
         logging.debug("Getting operation %s", operation.id)
         if self.trace.has_operation(operation.id):
             return self.trace.get_operation(operation.id)
