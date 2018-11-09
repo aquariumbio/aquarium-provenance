@@ -22,6 +22,8 @@ class TraceFactory:
         self.trace = trace
         self.session = session
         self.op_map = dict()
+        self.uploads = dict()
+        self.external_files = dict()
 
     @staticmethod
     def create_from(*, session, plan, visitor=None):
@@ -285,15 +287,20 @@ class TraceFactory:
                                             arg.item_id)
 
     def get_external_file(self, *, name):
-        return ExternalFileEntity(name=name)
+        if name in self.external_files:
+            return self.external_files['name']
+        
+        file_entity = ExternalFileEntity(name=name)
+        self.trace.add_file(file_entity)
+        self.external_files[name] = file_entity
 
     def get_file(self, *, upload_id):
         """
         Returns the file entity for an upload associated with a plan.
         If the entity is not currently in the trace, creates it.
         """
-        if self.trace.has_file(upload_id):
-            return self.trace.get_file(upload_id)
+        if upload_id in self.uploads:
+            return self.uploads[upload_id]
 
         file_entity = None
         upload = self.session.Upload.find(upload_id)
@@ -301,6 +308,7 @@ class TraceFactory:
             file_entity = FileEntity(upload=upload,
                                      job=self._get_job(upload.job.id))
             self.trace.add_file(file_entity)
+            self.uploads[upload_id] = file_entity
         else:
             logging.error("No upload object for ID %s", upload_id)
 
@@ -448,7 +456,7 @@ class PlanFileVisitor:
 
     def apply(self, key, file_entity):
         if (key.endswith('BEAD_UPLOAD') or key.startswith('BEADS_')):
-            self._add_bead_file(file_entity.file_id)
+            self._add_bead_file(file_entity.id)
 
     def _add_bead_file(self, upload_id):
         upload_list = self.trace.get_attribute('bead_files')
