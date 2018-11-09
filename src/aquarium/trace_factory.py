@@ -293,6 +293,8 @@ class TraceFactory:
         file_entity = ExternalFileEntity(name=name)
         self.trace.add_file(file_entity)
         self.external_files[name] = file_entity
+        
+        return file_entity
 
     def get_file(self, *, upload_id):
         """
