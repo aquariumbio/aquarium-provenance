@@ -247,7 +247,34 @@ class PartEntity(AbstractItemEntity):
         return True
 
 
-class FileEntity(AbstractEntity):
+class AbstractFileEntity(AbstractEntity):
+
+    @abc.abstractmethod
+    def __init__(self, *, name):
+        self.name = name
+
+    def file_type(self):
+        _, extension = os.path.splitext(self.name)
+        if extension == '.fcs':
+            return 'FCS'
+        if extension == '.csv':
+            return 'CSV'
+    type = property(file_type)
+
+    def get_path(self, *, directory=None):
+        name = self.name
+        if directory:
+            name = os.path.join(directory, name)
+        return name
+
+    def as_dict(self, *, path=None):
+        entity_dict = super().as_dict()
+        file_dict = dict()
+        file_dict['filename'] = self.get_path(directory=path)
+        return {**file_dict, **entity_dict}
+
+
+class FileEntity(AbstractFileEntity):
     """
     Defines an entity class for a file
     (corresponds to an Aquarium Upload object).
@@ -257,12 +284,11 @@ class FileEntity(AbstractEntity):
 
     def __init__(self, *, upload, job):
         self.file_id = str(upload.id)
-        self.name = upload.name
         self.size = upload.size
         self.job = job
         self.upload = upload
         self.check_sum = None
-        super().__init__()
+        super().__init__(name=upload.name)
 
     def __eq__(self, other):
         return isinstance(other, FileEntity) and self.file_id == self.file_id
@@ -279,31 +305,25 @@ class FileEntity(AbstractEntity):
     def apply(self, visitor):
         visitor.visit_file(self)
 
-    def file_type(self):
-        _, extension = os.path.splitext(self.name)
-        if extension == '.fcs':
-            return 'FCS'
-        if extension == '.csv':
-            return 'CSV'
-    type = property(file_type)
-
     def as_dict(self, *, path=None):
-        entity_dict = super().as_dict()
-        file_dict = dict()
+        file_dict = super().as_dict(path=path)
         file_dict['file_id'] = self.file_id
-        file_dict['filename'] = self.get_path(directory=path)
         file_dict['size'] = self.size
         if self.type:
             file_dict['type'] = self.type
         if self.check_sum:
             file_dict['sha256'] = self.check_sum
-        return {**file_dict, **entity_dict}
+        return file_dict
 
-    def get_path(self, *, directory=None):
-        name = self.name
-        if directory:
-            name = os.path.join(directory, name)
-        return name
+
+class ExternalFileEntity(AbstractEntity):
+    """
+    Represents a file that is stored outside of Aquarium.
+    Examples are files on Illumina basespace.
+    """
+
+    def __init__(self, *, name):
+        self.name = name
 
 
 class OperationArgument(abc.ABC):
