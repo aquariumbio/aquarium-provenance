@@ -87,9 +87,9 @@ class FileSourcePruningVisitor(ProvenanceVisitor):
         file_item_id = match.group(2)
         id_list = [source.item_id for source in file_entity.sources]
         if file_item_id not in id_list:
-            msg = "Item id %s from filename %s not in sources %s for %s"
+            msg = "Item id %s from filename %s not in sources %s for file %s"
             logging.error(msg, file_item_id, file_entity.name,
-                          str(id_list), file_entity.file_id)
+                          str(id_list), file_entity.id)
 
         if not self.trace.has_item(file_item_id):
             logging.error("Item ID %s does not exist in trace", file_item_id)
@@ -115,13 +115,18 @@ class FilePrefixVisitor(ProvenanceVisitor):
         super().__init__(trace)
 
     def visit_file(self, file_entity: FileEntity):
-        logging.debug("Visiting file %s %s to add prefix",
-                      file_entity.file_id, file_entity.name)
+        if file_entity.is_external:
+            logging.debug("File %s %s is external, not changing name",
+                          file_entity.id, file_entity.name)
+            return
 
-        prefix = file_entity.file_id
+        logging.debug("Visiting file %s %s to add prefix",
+                      file_entity.id, file_entity.name)
+
+        prefix = file_entity.upload_id
         file_entity.name = "{}-{}".format(prefix, file_entity.name)
         logging.debug("changing name of %s to %s",
-                      file_entity.file_id, file_entity.name)
+                      file_entity.id, file_entity.name)
 
 
 def create_trace_fix_visitor():

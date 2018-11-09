@@ -89,40 +89,40 @@ def check_file(trace, entity):
     no_error = True
     if not entity.generator:
         logging.warning("%s %s has no generators",
-                        entity.name, entity.file_id)
+                        entity.name, entity.id)
         no_error = False
     else:
         if entity.generator.is_job():
             if entity.generator.job_id not in trace.jobs:
                 logging.warning("job %s is a generator for file %s but is not in trace",
                                 entity.generator.job_id,
-                                entity.file_id)
+                                entity.id)
                 no_error = False
             for op in entity.generator.operations:
                 if op.operation_id not in trace.operations:
                     logging.warning("operation %s in job %s a generator for file %s not in trace",
                                     op.operation_id,
                                     entity.generator.job_id,
-                                    entity.file_id)
+                                    entity.id)
                     no_error = False
         elif entity.generator.operation_id not in trace.operations:
             logging.warning("operation %s is a generator for file %s but is not in trace",
                             entity.generator.operation_id,
-                            entity.file_id)
+                            entity.id)
             no_error = False
 
     if not entity.sources:
         logging.warning("%s %s has no sources",
-                        entity.name, entity.file_id)
+                        entity.name, entity.id)
         no_error = False
     elif len(entity.sources) > 1:
         logging.warning("%s %s has more than one source",
-                        entity.name, entity.file_id)
+                        entity.name, entity.id)
     else:
         for source_id in entity.get_source_ids():
             if not trace.has_item(source_id):
                 logging.warning("source %s for %s is not in trace",
-                                source_id, entity.file_id)
+                                source_id, entity.id)
                 no_error = False
     return no_error
 

@@ -149,7 +149,7 @@ class MeasurementVisitor(OperationProvenanceVisitor):
         if file_entity.sources:  # if there are sources double check
             if len(file_entity.sources) > 1:
                 logging.error("File %s has more than one source %s",
-                              file_entity.file_id,
+                              file_entity.id,
                               [src.item_id for src in file_entity.sources])
                 return None
 
@@ -182,11 +182,11 @@ class MeasurementVisitor(OperationProvenanceVisitor):
                           self.name,
                           str([op.operation_id for op
                                in file_entity.job.operations]),
-                          file_entity.file_id)
+                          file_entity.id)
             return
 
         logging.debug("Visiting file %s from MeasurementVisitor with ops %s",
-                      file_entity.file_id,
+                      file_entity.id,
                       str([op.operation_id for op in job_ops]))
 
         ops = job_ops
@@ -196,7 +196,7 @@ class MeasurementVisitor(OperationProvenanceVisitor):
             if not source.generator:
                 logging.error("source %s %s for file %s has no generator",
                               source.item_type, source.item_id,
-                              file_entity.file_id)
+                              file_entity.id)
                 return
 
             ops = [op for op in job_ops
@@ -204,18 +204,18 @@ class MeasurementVisitor(OperationProvenanceVisitor):
                    or source.generator.operation_id == op.operation_id]
             if not ops:
                 msg = "No generator found for file %s matching source %s"
-                logging.debug(msg, file_entity.file_id, source.item_id)
+                logging.debug(msg, file_entity.id, source.item_id)
                 return
 
         if len(ops) == 1:
             generator = next(iter(ops))
             file_entity.add_generator(generator)
-            log_generator_add(generator, 'file', file_entity.file_id)
+            log_generator_add(generator, 'file', file_entity.id)
         elif len(ops) > 1:
             self.trace.add_job(file_entity.job)
             file_entity.add_generator(file_entity.job)
             logging.info("Adding job %s as generator for file %s",
-                         file_entity.job.job_id, file_entity.file_id)
+                         file_entity.job.job_id, file_entity.id)
 
 
 class CytometryOperationVisitor(MeasurementVisitor):
@@ -236,7 +236,7 @@ class CytometryOperationVisitor(MeasurementVisitor):
 
         if not self.job_map[job_id]:
             logging.error("No generator found for file %s",
-                          file_entity.file_id)
+                          file_entity.id)
             return None
 
         return self.job_map[job_id].pop()
@@ -253,7 +253,7 @@ class CytometryOperationVisitor(MeasurementVisitor):
         super().visit_file(file_entity)
 
         logging.debug("Visiting file %s from CytometryOperationVisitor",
-                      file_entity.file_id)
+                      file_entity.id)
 
         self.get_bead_source(file_entity)
 
@@ -265,9 +265,9 @@ class CytometryOperationVisitor(MeasurementVisitor):
         if not bead_file_list:
             logging.debug("No bead_files attribute")
             return
-        if file_entity.file_id not in bead_file_list:
+        if file_entity.id not in bead_file_list:
             logging.debug("File %s is not in bead_files %s",
-                          file_entity.file_id, str(bead_file_list))
+                          file_entity.id, str(bead_file_list))
             return
 
         op = self.get_generator(file_entity)
@@ -281,7 +281,7 @@ class CytometryOperationVisitor(MeasurementVisitor):
         file_entity.add_source(bead_item)
         bead_item.add_attribute({'standard': 'BEAD_FLUORESCENCE'})
         logging.info("Adding beads %s as source for file %s",
-                     bead_item.item_id, file_entity.file_id)
+                     bead_item.item_id, file_entity.id)
 
 
 class IGEMPlateGeneratorVisitor(OperationProvenanceVisitor):
@@ -357,11 +357,11 @@ class FlowCytometry96WellAbstractVisitor(CytometryOperationVisitor):
             return
 
         if not file_entity.generator:
-            logging.debug("File %s has no generator", file_entity.file_id)
+            logging.debug("File %s has no generator", file_entity.id)
             return
 
         logging.debug("Visiting file %s from FlowCytometry96WellVisitor",
-                      file_entity.file_id)
+                      file_entity.id)
 
         if file_entity.generator.is_job():
             op = self.get_generator(file_entity)
@@ -377,7 +377,7 @@ class FlowCytometry96WellAbstractVisitor(CytometryOperationVisitor):
         plate_item = plate_arg.item
         file_entity.add_source(plate_item)
         logging.info("Adding plate %s as source for file %s",
-                     plate_item.item_id, file_entity.file_id)
+                     plate_item.item_id, file_entity.id)
 
 
 class FlowCytometry96WellVisitor(FlowCytometry96WellAbstractVisitor):
@@ -838,7 +838,7 @@ class ResuspensionOutgrowthVisitor(IGEMPlateGeneratorVisitor):
         if not source.generator:
             logging.error("source %s %s of file %s has no generator",
                           source.item_type, source.item_id,
-                          file_entity.file_id)
+                          file_entity.id)
             return
         if source.generator.is_job():
             return
@@ -1095,9 +1095,9 @@ class NCPlateReaderInductionVisitor(PassthruOperationVisitor):
         file_entity.add_source(collection)
         logging.info("Adding %s %s as source for %s %s",
                      collection.item_type, collection.item_id,
-                     'file', file_entity.file_id)
+                     'file', file_entity.id)
         file_entity.add_generator(collection.generator)
-        log_generator_add(collection.generator, 'file', file_entity.file_id)
+        log_generator_add(collection.generator, 'file', file_entity.id)
 
 
 def log_missing_generator(item_entity):

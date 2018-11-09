@@ -53,7 +53,7 @@ class UploadManager:
             except ConnectionError:
                 logging.error(
                     "Upload of file %s (%s) failed due to closed connection",
-                    file_entity.file_id, file_entity.name
+                    file_entity.id, file_entity.name
                 )
                 raise
             hash_sha = hashlib.sha256()
