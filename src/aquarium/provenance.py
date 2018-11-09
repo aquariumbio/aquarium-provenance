@@ -252,6 +252,7 @@ class AbstractFileEntity(AbstractEntity):
     @abc.abstractmethod
     def __init__(self, *, name):
         self.name = name
+        super().__init__()
 
     def file_type(self):
         _, extension = os.path.splitext(self.name)
@@ -316,14 +317,15 @@ class FileEntity(AbstractFileEntity):
         return file_dict
 
 
-class ExternalFileEntity(AbstractEntity):
+class ExternalFileEntity(AbstractFileEntity):
     """
     Represents a file that is stored outside of Aquarium.
     Examples are files on Illumina basespace.
     """
 
     def __init__(self, *, name):
-        self.name = name
+        super().__init__(name=name)
+
 
 
 class OperationArgument(abc.ABC):
