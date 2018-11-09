@@ -115,7 +115,7 @@ class FilePrefixVisitor(ProvenanceVisitor):
         super().__init__(trace)
 
     def visit_file(self, file_entity: FileEntity):
-        if file_entity.is_external:
+        if file_entity.is_external():
             logging.debug("File %s %s is external, not changing name",
                           file_entity.id, file_entity.name)
             return
