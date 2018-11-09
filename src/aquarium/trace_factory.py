@@ -4,6 +4,7 @@ from collections import defaultdict
 from collections.abc import Mapping
 from aquarium.provenance import (CollectionEntity,
                                  ItemEntity,
+                                 ExternalFileEntity,
                                  FileEntity,
                                  JobActivity,
                                  OperationActivity,
@@ -58,6 +59,10 @@ class TraceFactory:
         return factory.trace
 
     def _add_operation(self, operation):
+        """
+        Adds an activity for the given operation, and gathers input/output
+        items for the operation.
+        """
         op_activity = self.get_operation(operation)
         logging.debug("Getting attributes for operation %s", operation.id)
         self._get_attributes(operation.data_associations, op_activity)
@@ -65,15 +70,23 @@ class TraceFactory:
         self._gather_io_items(op_activity)
 
     def _add_jobs(self):
+        """
+        Add activities for the jobs in the plan. 
+        Ensures a job is included for each operation in the plan.
+        """
         visited = set()
         for _, op_activity in self.trace.operations.items():
             if op_activity.operation_id not in visited:
                 job_activity = self.get_operation_job(op_activity)
                 if job_activity:
-                    visited.update([op.operation_id for op
-                                    in job_activity.operations])
+                    visited.update([
+                        op.operation_id for op in job_activity.operations
+                    ])
 
     def _add_files(self, plan):
+        """
+        Adds file entities to the trace for the plan.
+        """
         logging.debug("Getting files for plan %s", plan.id)
         self._get_files(plan.data_associations, PlanFileVisitor(self.trace))
 
@@ -86,16 +99,13 @@ class TraceFactory:
         for _, item_entity in self.trace.items.items():
             logging.debug("Getting attributes for %s %s",
                           item_entity.item_type, item_entity.item_id)
+            self.add_attributes(item_entity)
             if item_entity.is_item():
-                self._get_attributes(item_entity.item.data_associations,
-                                     item_entity)
                 logging.debug("Getting files for %s %s",
                               item_entity.item_type, item_entity.item_id)
                 self._get_files(item_entity.item.data_associations,
                                 ItemFileVisitor(item_entity))
             elif item_entity.is_collection():
-                self._get_attributes(item_entity.collection.data_associations,
-                                     item_entity)
                 logging.debug("Getting files for %s %s",
                               item_entity.item_type, item_entity.item_id)
                 self._get_files(item_entity.collection.data_associations,
@@ -105,7 +115,19 @@ class TraceFactory:
             for upload in job_activity.job.uploads:
                 self.get_file(upload_id=upload['id'])
 
+    def add_attributes(self, item_entity: ItemEntity):
+        if item_entity.is_item():
+            self._get_attributes(item_entity.item.data_associations,
+                                 item_entity)
+        elif item_entity.is_collection():
+            self._get_attributes(item_entity.collection.data_associations,
+                                 item_entity)
+
     def _get_attributes(self, associations, prov_object):
+        """
+        Gather non-upload associations and attach them as attributes to the
+        provenance object.
+        """
         if not associations:
             return
 
@@ -116,6 +138,12 @@ class TraceFactory:
                 prov_object.add_attribute(association.object)
 
     def _get_files(self, associations, visitor):
+        """
+        Gather file associations, create the provenance file entity and apply
+        the visitor to determine how it is handled.
+
+        See :ItemFileVisitor:, :OperationFileVisitor:, :PlanFileVisitor:
+        """
         if not associations:
             return
 
@@ -162,6 +190,10 @@ class TraceFactory:
             file.apply(visitor)
 
     def _create_item_argument(self, field_value, op_activity):
+        """
+        Creates an OperationInput object for the field value as an input
+        to the operation activity.
+        """
         item_id = field_value.child_item_id
         item_entity = self.get_item(item_id=item_id)
 
@@ -239,18 +271,21 @@ class TraceFactory:
                         routing_map[arg.routing_id].append(arg.item)
                 elif is_output(field_value):
                     if arg.routing_id:
-                        suffix = "routing ID %s for operation %s output %s"
+                        msg_suffix = "routing ID %s for operation %s output %s"
                         if routing_map[arg.routing_id]:
-                            logging.debug("Matching " + suffix,
+                            logging.debug("Matching " + msg_suffix,
                                           arg.routing_id, operation.id,
                                           arg.item_id)
                             for input_item in routing_map[arg.routing_id]:
                                 if arg.item.item_id != input_item.item_id:
                                     arg.item.add_source(input_item)
                         else:
-                            logging.warning("Unmatched "+suffix,
+                            logging.warning("Unmatched " + msg_suffix,
                                             arg.routing_id, operation.id,
                                             arg.item_id)
+
+    def get_external_file(self, *, name):
+        return ExternalFileEntity(name=name)
 
     def get_file(self, *, upload_id):
         """
@@ -272,6 +307,8 @@ class TraceFactory:
         return file_entity
 
     def get_item(self, *, item_id):
+        """
+        """
         logging.debug("Getting item %s", item_id)
         if self.trace.has_item(item_id):
             return self.trace.get_item(item_id)
@@ -369,11 +406,17 @@ def is_upload(association):
         'upload_file_name', 'upload_file_size', 'upload_updated_at'
     ])
     association_value = association.value
-    return isinstance(association_value,
-                      Mapping) and association_value.keys() == upload_keys
+    return (isinstance(association_value, Mapping)
+            and
+            association_value.keys() == upload_keys)
 
 
 class ItemFileVisitor:
+    """
+    File visitor that adds an item as the source of any file it the visitor
+    is applied to.
+    """
+
     def __init__(self, item_entity):
         self.item_entity = item_entity
 
@@ -382,6 +425,11 @@ class ItemFileVisitor:
 
 
 class OperationFileVisitor:
+    """
+    File visitor that adds an operation as the generator of any file that the
+    visitor is applied to.
+    """
+
     def __init__(self, op_activity):
         self.op_activity = op_activity
 
@@ -390,6 +438,11 @@ class OperationFileVisitor:
 
 
 class PlanFileVisitor:
+    """
+    File visitor that manages a list of calibration bead files as an attribute
+    of the plan.
+    """
+
     def __init__(self, trace):
         self.trace = trace
 
