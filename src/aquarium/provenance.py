@@ -13,8 +13,7 @@ a part of a collection has a sample but no object_type.
 import abc
 import logging
 import os
-from collections import defaultdict, deque
-from copy import copy
+from collections import defaultdict
 
 
 class AttributesMixin(abc.ABC):
@@ -158,7 +157,6 @@ class ItemEntity(AbstractItemEntity):
     """
 
     def __init__(self, *, item):
-        self.item = item
         self.sample = item.sample
         self.object_type = item.object_type
         super().__init__(item_id=item.id, item_type='item')
@@ -192,7 +190,6 @@ class CollectionEntity(AbstractItemEntity):
 
     def __init__(self, collection):
         self.object_type = collection.object_type
-        self.collection = collection
         self.parts = list()
         super().__init__(item_id=collection.id, item_type='collection')
 
@@ -381,9 +378,9 @@ class OperationParameter(OperationArgument):
 
 class OperationInput(OperationArgument):
 
-    def __init__(self, *, name, field_value_id, item, routing_id=None):
-        self.item_id = item.item_id
-        self.item = item
+    def __init__(self, *, name, field_value_id, item_entity, routing_id=None):
+        self.item_id = item_entity.item_id
+        self.item = item_entity
         self.routing_id = routing_id
         super().__init__(name=name, field_value_id=field_value_id)
 
@@ -401,16 +398,20 @@ class OperationInput(OperationArgument):
 class JobActivity:
     def __init__(self, *, job, operations, start_time, end_time):
         self.job_id = str(job.id)
-        self.job = job
         self.operations = operations
         self.start_time = start_time
         self.end_time = end_time
+        for operation in self.operations:
+            operation.job = self
 
     def is_job(self):
         return True
 
     def get_activity_id(self):
         return "job_{}".format(self.job_id)
+
+    def apply(self, visitor):
+        visitor.visit_job(self)
 
     def as_dict(self):
         job_dict = dict()
@@ -426,7 +427,7 @@ class OperationActivity(AttributesMixin):
         self.type = 'operation'
         self.operation_id = str(id)
         self.operation_type = operation_type
-        self.operation = operation
+        self.job = None
         self.start_time = start_time
         self.end_time = end_time
         self.inputs = list()
@@ -537,6 +538,9 @@ class PlanTrace(AttributesMixin):
         if job_key in self.jobs:
             return self.jobs[job_key]
 
+    def get_jobs(self):
+        return [job for _, job in self.jobs.items()]
+
     def get_operation(self, operation_id):
         op_key = str(operation_id)
         if op_key in self.operations:
@@ -556,7 +560,7 @@ class PlanTrace(AttributesMixin):
     def get_file(self, id):
         """
         Returns the file with the file id in this trace.
-        Returns None if there is no such file. 
+        Returns None if there is no such file.
         """
         file_key = str(id)
         if file_key in self.files:
@@ -637,53 +641,3 @@ class PlanTrace(AttributesMixin):
         ]
         super_dict = super().as_dict()
         return {**trace_dict, **super_dict}
-
-    def project_from(self, activity):
-        trace = PlanTrace(plan_id=self.plan_id, name=self.plan_name)
-        trace.attributes = copy(self.attributes)
-        operation_queue = deque()
-        item_queue = deque()
-        if activity.is_job():
-            trace.add_job(activity)
-            for _, entity in self.files.items():
-                if entity.generator and entity.generator.is_job():
-                    if entity.generator.job_id == activity.job_id:
-                        trace.add_file(entity)
-                        item_queue.extend(entity.sources)
-            operation_queue.extend(activity.operations)
-        else:
-            operation_queue.append(activity)
-            for _, entity in self.files.items():
-                if entity.generator and not entity.generator.is_job():
-                    if entity.generator.operation_id == activity.operation_id:
-                        trace.add_file(entity)
-                        item_queue.extend(entity.sources)
-
-        visited_operations = set()
-        visited_items = set()
-        while operation_queue or item_queue:
-            while operation_queue:
-                op = operation_queue.popleft()
-                if op.operation_id in visited_operations:
-                    continue
-                trace.add_operation(op)
-                inputs = [self.get_item(input.item_id)
-                          for input in op.inputs if input.is_item()]
-                item_queue.extend(inputs)
-                visited_operations.add(op.operation_id)
-
-            while item_queue:
-                item = item_queue.popleft()
-                if item.item_id in visited_items:
-                    continue
-                trace.add_item(item)
-                if item.generator:
-                    operation_queue.append(item.generator)
-                if item.is_part():
-                    item_queue.append(item.collection)
-                elif item.is_collection():
-                    item_queue.extend(item.parts)
-                item_queue.extend(item.sources)
-                visited_items.add(item.item_id)
-
-        return trace

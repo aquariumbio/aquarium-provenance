@@ -43,7 +43,7 @@ def check_item(trace, entity, stop_list):
                 no_error = False
             for op in entity.generator.operations:
                 if op.operation_id not in trace.operations:
-                    msg = "operation %s in job %s a generator for %s %s not in trace"
+                    msg = "op %s in job %s a generator for %s %s not in trace"
                     logging.warning(msg,
                                     op.operation_id,
                                     entity.generator.job_id,
@@ -94,21 +94,24 @@ def check_file(trace, entity):
     else:
         if entity.generator.is_job():
             if entity.generator.job_id not in trace.jobs:
-                logging.warning("job %s is a generator for file %s but is not in trace",
-                                entity.generator.job_id,
-                                entity.id)
+                logging.warning(
+                    "job %s is a generator for file %s but is not in trace",
+                    entity.generator.job_id,
+                    entity.id)
                 no_error = False
             for op in entity.generator.operations:
                 if op.operation_id not in trace.operations:
-                    logging.warning("operation %s in job %s a generator for file %s not in trace",
-                                    op.operation_id,
-                                    entity.generator.job_id,
-                                    entity.id)
+                    logging.warning(
+                        "op %s in job %s a generator for file %s not in trace",
+                        op.operation_id,
+                        entity.generator.job_id,
+                        entity.id)
                     no_error = False
         elif entity.generator.operation_id not in trace.operations:
-            logging.warning("operation %s is a generator for file %s but is not in trace",
-                            entity.generator.operation_id,
-                            entity.id)
+            logging.warning(
+                "op %s is a generator for file %s but is not in trace",
+                entity.generator.operation_id,
+                entity.id)
             no_error = False
 
     if not entity.sources:

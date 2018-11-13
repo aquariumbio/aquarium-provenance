@@ -1,7 +1,7 @@
 import logging
 import re
 from aquarium.provenance import (CollectionEntity, PartEntity)
-from aquarium.trace_visitor import ProvenanceVisitor
+from aquarium.trace.visitor import ProvenanceVisitor
 from util.plate import well_coordinates, coordinates_for
 from collections.abc import Mapping
 
@@ -22,17 +22,17 @@ class AddPartsVisitor(ProvenanceVisitor):
         routing_matrix = AddPartsVisitor.get_routing_matrix(collection)
         self._create_parts(collection, upload_matrix, routing_matrix)
 
-    def _create_parts(self, entity, upload_matrix, routing_matrix):
-        self._create_parts_from_samples(entity)
+    def _create_parts(self, collection, upload_matrix, routing_matrix):
+        self._create_parts_from_samples(collection)
         if routing_matrix:
-            self._create_parts_from_routing(entity, routing_matrix)
+            self._create_parts_from_routing(collection, routing_matrix)
         if upload_matrix:
-            self._create_parts_from_uploads(entity, upload_matrix)
+            self._create_parts_from_uploads(collection, upload_matrix)
 
-    def _create_parts_from_samples(self, entity):
-        collection = entity.collection
-        generator = entity.generator
-        item_id = entity.item_id
+    def _create_parts_from_samples(self, coll_entity):
+        collection = self.factory.item_map[coll_entity.item_id]
+        generator = coll_entity.generator
+        item_id = coll_entity.item_id
         for i in range(len(collection.matrix)):
             row = collection.matrix[i]
             for j in range(len(row)):
@@ -42,7 +42,7 @@ class AddPartsVisitor(ProvenanceVisitor):
 
                 part_id = str(item_id) + '/' + well_coordinates(i, j)
                 part_entity = self._get_part(part_id=part_id,
-                                             collection=entity)
+                                             collection=coll_entity)
                 if generator and not part_entity.generator:
                     part_entity.add_generator(generator)
 
@@ -186,11 +186,13 @@ class AddPartsVisitor(ProvenanceVisitor):
             logging.info(msg, part_ref, source_item_id)
             return source_item_entity
 
+        source_collection = self.factory.item_map[source_item_id]
+
         part_id = source_item_id + '/' + part_ref
 
         # this assumes part_ref is well-formed
         (i, j) = AddPartsVisitor._split_well_coordinate(part_ref)
-        sample_id = source_item_entity.collection.matrix[i][j]
+        sample_id = source_collection.matrix[i][j]
         sample = self.factory.get_sample(sample_id)
         source_part_entity = self._get_part(
             part_id=part_id, collection=source_item_entity)
@@ -245,7 +247,7 @@ class AddPartsVisitor(ProvenanceVisitor):
     @staticmethod
     def get_upload_matrix(entity):
         """
-        Newer protocols that have the uppercase key 
+        Newer protocols have the key in all uppercase.
         """
         upload_attribute = entity.get_attribute('SAMPLE_UPLOADs')
         if upload_attribute:

@@ -10,8 +10,36 @@ from aquarium.provenance import (
     PartEntity,
     PlanTrace
 )
-from aquarium.trace_visitor import ProvenanceVisitor
+from aquarium.trace.visitor import ProvenanceVisitor, FactoryVisitor
 from util.plate import well_coordinates, coordinates_for
+
+
+class ChallengeProblemTraceVisitor(ProvenanceVisitor):
+
+    def __init__(self, *, trace=None, labname, challenge_problem):
+        self.labname = labname
+        self.challenge_problem = challenge_problem
+        super().__init__(trace)
+
+    def visit_plan(self, plan: PlanTrace):
+        plan.add_attribute({'lab': self.labname})
+        cp_attr = 'challenge_problem'
+        if not plan.has_attribute(cp_attr):
+            logging.warning("Adding \'%s\' plan attribute", cp_attr)
+            if self.challenge_problem == 'yg':
+                plan.add_attribute({cp_attr: 'YEAST_GATES'})
+            elif self.challenge_problem == 'nc':
+                plan.add_attribute({cp_attr: 'NOVEL_CHASSIS'})
+            elif self.challenge_problem == 'ps':
+                plan.add_attribute({cp_attr: 'PROTEIN_DESIGN'})
+
+        exp_ref_attr = 'experiment_reference'
+        if not plan.has_attribute(exp_ref_attr):
+            logging.warning("Adding \'%s\' plan attribute", exp_ref_attr)
+            if self.challenge_problem == 'yg':
+                plan.add_attribute({exp_ref_attr: 'Yeast-Gates'})
+            elif self.challenge_problem == 'nc':
+                plan.add_attribute({exp_ref_attr: 'NovelChassis-NAND-Gate'})
 
 
 class OperationProvenanceVisitor(ProvenanceVisitor):
@@ -631,9 +659,16 @@ class SynchByODVisitor(MeasurementVisitor):
         abs_part = row * 12 + col
 
         od_param_str = next(iter(od_param_list)).value
-        od_hash = json.loads(
-            re.sub(r"final\_ODs?", r'"final_OD"', od_param_str))
-        od_list = od_hash['final_OD']
+        logging.debug("Checking OD param %s", od_param_str)
+        number = r"(?:\d+(?:\.\d*)?|\.\d+)"
+        number_list = "\[({},)*{}\]".format(number, number)
+        pattern = r"\{?\"?final\_ODs?\"?:\{?(" + number_list + ")\}"
+        match = re.match(pattern, od_param_str)
+        if not match:
+            logging.warning("Unable to get target ODs for operation %s",
+                            part.collection.generator.operation_id)
+            return
+        od_list = json.loads(match[1])
 
         if abs_part < num_source_parts * len(od_list):
             abs_source = abs_part % num_source_parts
@@ -642,8 +677,9 @@ class SynchByODVisitor(MeasurementVisitor):
                 # TODO: attribute should have another name
                 od_index = abs_part // num_source_parts
                 part.add_attribute({'od600': od_list[od_index]})
-                logging.debug("Adding attribute od600 with value %s to part %s",
-                              od_list[od_index], part.item_id)
+                logging.debug(
+                    "Adding attribute od600 with value %s to part %s",
+                    od_list[od_index], part.item_id)
         else:
 
             # controls are added to plate after sample wells
@@ -862,8 +898,8 @@ class NCInoculationAndMediaVisitor(OperationProvenanceVisitor):
     def visit_operation(self, op_activity: OperationActivity):
 
         if self.is_match(op_activity):
-            job_activity = self.factory.get_operation_job(op_activity)
-            upload = next(iter(job_activity.job.uploads))
+            job = self.factory.job_map[op_activity.job.job_id]
+            upload = next(iter(job.uploads))
             upload_id = upload['id']
             file = self.factory.get_file(upload_id=upload_id)
             file.add_generator(op_activity)
@@ -1114,3 +1150,33 @@ def log_source_add(source, item):
 def log_generator_add(generator, type, entity_id):
     logging.info("Adding %s as generator for %s %s",
                  generator.operation_id, type, entity_id)
+
+
+def create_operation_visitor():
+    """
+    Creates visitor to apply heuristic fixes to a PlanTrace object.
+
+    Because some visitors propagate attributes, it is best to have them in
+    order they commonly occur in plans or there may be nothing to propagate.
+    """
+    visitor = FactoryVisitor()
+
+    # may involve adding media
+    visitor.add_visitor(YeastOvernightSuspension())
+    visitor.add_visitor(ResuspensionOutgrowthVisitor())
+    visitor.add_visitor(SynchByODVisitor())
+    #
+    visitor.add_visitor(MeasureODAndGFP())
+    visitor.add_visitor(PlateReaderMeasurementVisitor())
+    #
+    visitor.add_visitor(NCInoculationAndMediaVisitor())
+    visitor.add_visitor(NCLargeVolumeInductionVisitor())
+    visitor.add_visitor(NCSamplingVisitor())
+    visitor.add_visitor(NCRecoveryVisitor())
+    visitor.add_visitor(NCPlateReaderInductionVisitor())
+    #
+    visitor.add_visitor(FlowCytometry96WellVisitor())
+    visitor.add_visitor(FlowCytometry96WellOldVisitor())
+    visitor.add_visitor(CytometerBeadCalibration())
+
+    return visitor

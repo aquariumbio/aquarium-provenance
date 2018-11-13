@@ -4,6 +4,7 @@ from aquarium.provenance import (
     CollectionEntity,
     FileEntity,
     ItemEntity,
+    JobActivity,
     OperationActivity,
     PartEntity,
     PlanTrace
@@ -28,6 +29,9 @@ class ProvenanceVisitor(abc.ABC):
         return
 
     def visit_item(self, item: ItemEntity):
+        return
+
+    def visit_job(self, job: JobActivity):
         return
 
     def visit_operation(self, operation: OperationActivity):
@@ -60,17 +64,21 @@ class BatchVisitor(ProvenanceVisitor):
         for visitor in self.visitors:
             collection.apply(visitor)
 
-    def visit_item(self, item):
+    def visit_item(self, item_entity):
         for visitor in self.visitors:
-            item.apply(visitor)
+            item_entity.apply(visitor)
 
-    def visit_part(self, part):
+    def visit_job(self, job_activity):
         for visitor in self.visitors:
-            part.apply(visitor)
+            job_activity.apply(visitor)
 
-    def visit_file(self, file):
+    def visit_part(self, part_entity):
         for visitor in self.visitors:
-            file.apply(visitor)
+            part_entity.apply(visitor)
+
+    def visit_file(self, file_entity):
+        for visitor in self.visitors:
+            file_entity.apply(visitor)
 
     def visit_plan(self, plan):
         for visitor in self.visitors:

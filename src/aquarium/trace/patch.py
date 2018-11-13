@@ -1,30 +1,12 @@
 import logging
 import re
-from collections import defaultdict
+
 from aquarium.provenance import (
     CollectionEntity,
     FileEntity,
-    ItemEntity,
-    PartEntity,
     PlanTrace
 )
-from aquarium.trace_visitor import ProvenanceVisitor, FactoryVisitor
-from aquarium.operation_visitor import (
-    CytometerBeadCalibration,
-    FlowCytometry96WellVisitor,
-    FlowCytometry96WellOldVisitor,
-    MeasureODAndGFP,
-    PlateReaderMeasurementVisitor,
-    SynchByODVisitor,
-    ResuspensionOutgrowthVisitor,
-    NCInoculationAndMediaVisitor,
-    NCLargeVolumeInductionVisitor,
-    NCPlateReaderInductionVisitor,
-    NCRecoveryVisitor,
-    NCSamplingVisitor,
-    YeastOvernightSuspension)
-from aquarium.part_visitor import AddPartsVisitor
-from typing import List
+from aquarium.trace.visitor import ProvenanceVisitor, FactoryVisitor
 
 
 class CollectionSourceInferenceVisitor(ProvenanceVisitor):
@@ -129,39 +111,12 @@ class FilePrefixVisitor(ProvenanceVisitor):
                       file_entity.id, file_entity.name)
 
 
-def create_trace_fix_visitor():
-    """
-    Creates visitor to apply heuristic fixes to a PlanTrace object.
-
-    Because some visitors propagate attributes, it is best to have them in
-    order they commonly occur in plans or there may be nothing to propagate.
-    """
+def create_patch_visitor():
     visitor = FactoryVisitor()
-
     visitor.add_visitor(FixMessageVisitor())
-    visitor.add_visitor(AddPartsVisitor())
     visitor.add_visitor(FileSourcePruningVisitor())
-    # may involve adding media
-    visitor.add_visitor(YeastOvernightSuspension())
-    visitor.add_visitor(ResuspensionOutgrowthVisitor())
-    visitor.add_visitor(SynchByODVisitor())
-    #
-    visitor.add_visitor(MeasureODAndGFP())
-    visitor.add_visitor(PlateReaderMeasurementVisitor())
-    #
-    visitor.add_visitor(NCInoculationAndMediaVisitor())
-    visitor.add_visitor(NCLargeVolumeInductionVisitor())
-    visitor.add_visitor(NCSamplingVisitor())
-    visitor.add_visitor(NCRecoveryVisitor())
-    visitor.add_visitor(NCPlateReaderInductionVisitor())
-    #
-    visitor.add_visitor(FlowCytometry96WellVisitor())
-    visitor.add_visitor(FlowCytometry96WellOldVisitor())
-    visitor.add_visitor(CytometerBeadCalibration())
-    #
     visitor.add_visitor(CollectionSourceInferenceVisitor())
     visitor.add_visitor(FilePrefixVisitor())
-
     return visitor
 
 
@@ -171,31 +126,3 @@ class FixMessageVisitor(ProvenanceVisitor):
 
     def visit_plan(self, plan: PlanTrace):
         logging.info("Applying heuristic fixes to plan %s", plan.plan_id)
-
-
-class ChallengeProblemTraceVisitor(ProvenanceVisitor):
-
-    def __init__(self, *, trace=None, labname, challenge_problem):
-        self.labname = labname
-        self.challenge_problem = challenge_problem
-        super().__init__(trace)
-
-    def visit_plan(self, plan: PlanTrace):
-        plan.add_attribute({'lab': self.labname})
-        cp_attr = 'challenge_problem'
-        if not plan.has_attribute(cp_attr):
-            logging.warning("Adding \'%s\' plan attribute", cp_attr)
-            if self.challenge_problem == 'yg':
-                plan.add_attribute({cp_attr: 'YEAST_GATES'})
-            elif self.challenge_problem == 'nc':
-                plan.add_attribute({cp_attr: 'NOVEL_CHASSIS'})
-            elif self.challenge_problem == 'ps':
-                plan.add_attribute({cp_attr: 'PROTEIN_DESIGN'})
-
-        exp_ref_attr = 'experiment_reference'
-        if not plan.has_attribute(exp_ref_attr):
-            logging.warning("Adding \'%s\' plan attribute", exp_ref_attr)
-            if self.challenge_problem == 'yg':
-                plan.add_attribute({exp_ref_attr: 'Yeast-Gates'})
-            elif self.challenge_problem == 'nc':
-                plan.add_attribute({exp_ref_attr: 'NovelChassis-NAND-Gate'})
