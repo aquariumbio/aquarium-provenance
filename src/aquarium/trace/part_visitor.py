@@ -226,14 +226,15 @@ class AddPartsVisitor(ProvenanceVisitor):
         logging.debug("Part reference %s", part_ref)
 
         # this assumes part_ref is well-formed
-        (i, j) = AddPartsVisitor._split_well_coordinate(part_ref)
-        source_collection = self.factory.item_map[source_item_id]
-        sample_id = source_collection.matrix[i][j]
-        sample = self.factory.get_sample(sample_id)
         source_part_entity = self._get_part(part_ref=part_ref,
                                             collection=source_item_entity)
         if not source_part_entity.sample:
+            source_collection = self.factory.item_map[source_item_id]
+            (i, j) = AddPartsVisitor._split_well_coordinate(well)
+            sample_id = source_collection.matrix[i][j]
+            sample = self.factory.get_sample(sample_id)
             source_part_entity.sample = sample
+            
         return source_part_entity
 
     def _get_part(self, *, part_ref, collection=None):
