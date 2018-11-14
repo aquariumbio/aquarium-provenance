@@ -179,6 +179,7 @@ class AddPartsVisitor(ProvenanceVisitor):
 
         This should not be necessary once part are first order in aquarium.
         """
+        logging.debug("Getting entity for source_id %s", source_id)
         if self.trace.has_item(source_id):
             return self.trace.get_item(source_id)
 
@@ -211,6 +212,9 @@ class AddPartsVisitor(ProvenanceVisitor):
         source_item_entity = self.factory.get_item(item_id=source_item_id)
 
         if not well:
+            logging.debug("No well, returning %s %s as source",
+                          source_item_entity.item_type,
+                          source_item_entity.item_id)
             return source_item_entity
 
         if not source_item_entity.is_collection():
@@ -218,12 +222,12 @@ class AddPartsVisitor(ProvenanceVisitor):
             logging.info(msg, well, source_item_id)
             return source_item_entity
 
-        source_collection = self.factory.item_map[source_item_id]
-
         part_ref = source_item_id + '/' + well
+        logging.debug("Part reference %s", part_ref)
 
         # this assumes part_ref is well-formed
         (i, j) = AddPartsVisitor._split_well_coordinate(part_ref)
+        source_collection = self.factory.item_map[source_item_id]
         sample_id = source_collection.matrix[i][j]
         sample = self.factory.get_sample(sample_id)
         source_part_entity = self._get_part(part_ref=part_ref,
