@@ -214,15 +214,19 @@ class CollectionEntity(AbstractItemEntity):
 class PartEntity(AbstractItemEntity):
 
     def __init__(self, *,
-                 part_id: str, sample=None, collection: CollectionEntity):
+                 part_id: str, part_ref: str,
+                 sample=None, object_type=None,
+                 collection: CollectionEntity):
+        self.ref = part_ref  # reference string for this part
         self.sample = sample
+        self.object_type = object_type
         self.collection = collection
         self.collection.add_part(self)
         super().__init__(item_id=part_id, item_type='part')
 
     @property
-    def part_ref(self):
-        return self.item_id.split('/')[1]
+    def well(self):
+        return self.ref.split('/')[1]
 
     def get_sample(self):
         return self.sample
@@ -232,12 +236,18 @@ class PartEntity(AbstractItemEntity):
 
     def as_dict(self):
         item_dict = super().as_dict()
+        item_dict['well'] = self.well
         item_dict['part_of'] = self.collection.item_id
         sample_dict = dict()
         if self.sample:
             sample_dict['sample_id'] = str(self.sample.id)
             sample_dict['sample_name'] = self.sample.name
-        item_dict['sample'] = sample_dict
+            item_dict['sample'] = sample_dict
+        if self.object_type:
+            type_dict = dict()
+            type_dict['object_type_id'] = str(self.object_type.id)
+            type_dict['object_type_name'] = self.object_type.name
+            item_dict['object_type'] = type_dict
         return item_dict
 
     def is_part(self):
