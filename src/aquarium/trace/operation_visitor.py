@@ -73,7 +73,7 @@ class OperationProvenanceVisitor(ProvenanceVisitor):
             if all(isinstance(elem, list) for elem in value):  # matrix
                 if key.endswith('_mat'):
                     part_key = key[:key.rfind('_mat')]
-                    i, j = coordinates_for(part.part_ref)
+                    i, j = coordinates_for(part.well)
                     entry = value[i][j]
                     if entry:
                         logging.debug("Adding attribute %s: %s to part %s",
@@ -117,10 +117,10 @@ class PassthruOperationVisitor(OperationProvenanceVisitor):
         coll_sources = [
             source for source in coll_entity.sources if source.is_collection()]
 
-        part_ref = part.part_ref
+        well = part.well
         for source in coll_sources:
             source_id = source.item_id
-            source_part_id = source_id + '/' + part_ref
+            source_part_id = source_id + '/' + well
             if self.trace.has_item(source_part_id):
                 part.add_source(self.trace.get_item(source_part_id))
                 logging.info("use collection routing to add source %s to %s",
@@ -333,7 +333,7 @@ class IGEMPlateGeneratorVisitor(OperationProvenanceVisitor):
             logging.debug("%s %s has no sample", part.item_type, part.item_id)
             return
 
-        row, col = coordinates_for(part.part_ref)
+        row, col = coordinates_for(part.well)
         if part.sample.name == 'Fluorescein Sodium Salt':
             if row > 3:
                 logging.error("Found fluorescein %s in row %s > 3",
@@ -623,13 +623,13 @@ class SynchByODVisitor(MeasurementVisitor):
 
         logging.warning("Part %s has no sources in SynchByOD", part.item_id)
 
-        if part.part_ref == 'H7':
+        if part.well == 'H7':
             logging.warning(
                 "Part %s is positive sytox wildtype control", part.item_id)
-        elif part.part_ref == 'H8':
+        elif part.well == 'H8':
             logging.warning(
                 "Part %s is negative sytox wildtype control", part.item_id)
-        elif part.part_ref == 'H9':
+        elif part.well == 'H9':
             logging.warning("Part %s is positive gfp control", part.item_id)
 
         collection_source = next(iter(part.collection.sources))
@@ -655,14 +655,14 @@ class SynchByODVisitor(MeasurementVisitor):
         logging.info("Plate %s has %s sample parts",
                      collection_source.item_id, num_source_parts)
 
-        row, col = coordinates_for(part.part_ref)
+        row, col = coordinates_for(part.well)
         abs_part = row * 12 + col
 
         od_param_str = next(iter(od_param_list)).value
         logging.debug("Checking OD param %s", od_param_str)
         number = r"(?:\d+(?:\.\d*)?|\.\d+)"
-        number_list = "\[({},)*{}\]".format(number, number)
-        pattern = r"\{?\"?final\_ODs?\"?:\{?(" + number_list + ")\}"
+        number_list = r"\[({},)*{}\]".format(number, number)
+        pattern = r"\{?\"?final\_ODs?\"?:\{?(" + number_list + r")\}"
         match = re.match(pattern, od_param_str)
         if not match:
             logging.warning("Unable to get target ODs for operation %s",
@@ -683,7 +683,7 @@ class SynchByODVisitor(MeasurementVisitor):
         else:
 
             # controls are added to plate after sample wells
-            ref = part.part_ref
+            ref = part.well
             # TODO: deal with controls from other sources
 
         source_id = "{}/{}".format(collection_source.item_id, ref)
@@ -840,7 +840,7 @@ class ResuspensionOutgrowthVisitor(IGEMPlateGeneratorVisitor):
         if source_item:
             dest_attribute = source_item.get_attribute('destination')
             if dest_attribute:
-                row, column = coordinates_for(part.part_ref)
+                row, column = coordinates_for(part.well)
                 collection_id = part.collection.item_id
                 dest_list = [obj for obj in dest_attribute if (
                     str(obj['id']) == collection_id
@@ -969,7 +969,7 @@ class NCLargeVolumeInductionVisitor(OperationProvenanceVisitor):
 
         transfer_coords = part.collection.get_attribute(
             'deep_well_transfer_coords')
-        i, j = coordinates_for(part.part_ref)
+        i, j = coordinates_for(part.well)
         source_collection = next(iter(part.collection.sources))
         source_id = "{}/{}".format(source_collection.item_id,
                                    transfer_coords[i][j])
@@ -1021,7 +1021,7 @@ class NCSamplingVisitor(OperationProvenanceVisitor):
         process.
 
         """
-        i, j = coordinates_for(part.part_ref)
+        i, j = coordinates_for(part.well)
 
         # determine first entry in transfer_coordinates for appropriate plate
         anchor_i = i % 2  # either 0 or 1
