@@ -1175,6 +1175,7 @@ def create_operation_visitor():
     visitor = FactoryVisitor()
 
     # may involve adding media
+    visitor.add_visitor(YeastMatingVisitor())
     visitor.add_visitor(YeastOvernightSuspension())
     visitor.add_visitor(ResuspensionOutgrowthVisitor())
     visitor.add_visitor(SynchByODVisitor())
