@@ -17,7 +17,7 @@ def check_item(trace, entity, stop_list):
         return no_error
 
     if entity.is_collection():
-        for part in entity.parts:
+        for part in entity.parts():
             if not trace.has_item(part.item_id):
                 logging.warning(
                     "Part %s not in trace", part.item_id)
