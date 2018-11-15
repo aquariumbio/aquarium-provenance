@@ -60,13 +60,15 @@ class TraceFactory:
         for operation in plan.operations:
             factory._add_operation(operation)
 
-        if visitor:
-            primary_visitor.add_visitor(visitor)
-
+        # Apply the primary visitor first, and then the passed in visitor
         primary_visitor.add_trace(trace)
         primary_visitor.add_factory(factory)
-
         factory._apply(primary_visitor)
+
+        if visitor:
+            visitor.add_trace(trace)
+            visitor.add_factory(factory)
+            factory._apply(visitor)
 
         return factory.trace
 
