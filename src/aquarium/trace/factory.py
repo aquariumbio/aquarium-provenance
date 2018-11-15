@@ -100,6 +100,10 @@ class TraceFactory:
         for job_activity in self.trace.get_jobs():
             job_activity.apply(visitor)
 
+        logging.debug("Visit items")
+        for item_entity in self.trace.get_items():
+            item_entity.apply(visitor)
+
         logging.debug("Visit collections")
         for collection in self.trace.get_collections():
             collection.apply(visitor)
@@ -107,10 +111,6 @@ class TraceFactory:
         logging.debug("Visit parts")
         for part_entity in self.trace.get_parts():
             part_entity.apply(visitor)
-
-        logging.debug("Visit items")
-        for item_entity in self.trace.get_items():
-            item_entity.apply(visitor)
 
         logging.debug("Visit files")
         for file_entity in self.trace.get_files():
