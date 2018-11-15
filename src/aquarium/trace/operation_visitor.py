@@ -745,6 +745,20 @@ def copy_attribute_from_source(entity, key):
             return
 
 
+class YeastMatingVisitor(OperationProvenanceVisitor):
+    def __init__(self, trace=None):
+        super().__init__(trace=trace, name='Yeast Mating')
+
+    def visit_item(self, item_entity):
+        if not item_entity.generator:
+            return
+        logging.debug("Visiting item %s for Yeast Mating")
+        if self.is_match(item_entity.generator):
+            for arg in item_entity.generator.inputs:
+                if arg.is_item():
+                    item_entity.add_source(arg.item)
+
+
 class YeastOvernightSuspension(OperationProvenanceVisitor):
     def __init__(self, trace=None):
         super().__init__(trace=trace, name='Yeast Overnight Suspension')
