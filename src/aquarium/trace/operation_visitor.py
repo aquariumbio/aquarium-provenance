@@ -119,15 +119,14 @@ class PassthruOperationVisitor(OperationProvenanceVisitor):
 
         well = part.well
         for source in coll_sources:
-            source_id = source.item_id
-            source_part_id = source_id + '/' + well
-            if self.trace.has_item(source_part_id):
-                part.add_source(self.trace.get_item(source_part_id))
+            source_part = source.get_part(well)
+            if source_part:
+                part.add_source(source_part)
                 logging.info("use collection routing to add source %s to %s",
-                             source_part_id, part.item_id)
+                             source_part.item_id, part.item_id)
             else:
-                logging.debug("routing failed, source %s for %s doesn't exist",
-                              source_part_id, part.item_id)
+                logging.debug("routing failed, no source %s/%s for %s",
+                              source.item_id, well, part.item_id)
 
 
 class MeasurementVisitor(OperationProvenanceVisitor):
