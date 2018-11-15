@@ -821,6 +821,7 @@ class ResuspensionOutgrowthVisitor(IGEMPlateGeneratorVisitor):
                 part.item_id
             )
             return
+        logging.debug("Part %s has no source attribute", part.item_id)
 
         # older versions of protocols used a source_reference
         source_reference = part.get_attribute('source_reference')
