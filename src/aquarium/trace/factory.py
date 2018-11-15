@@ -89,22 +89,30 @@ class TraceFactory:
         visitor.add_trace(self.trace)
         visitor.add_factory(self)
 
+        logging.debug("Visit trace")
         self.trace.apply(visitor)
+
+        logging.debug("Visit operations")
         for op_activity in self.trace.get_operations():
             op_activity.apply(visitor)
 
+        logging.debug("Visit jobs")
         for job_activity in self.trace.get_jobs():
             job_activity.apply(visitor)
 
+        logging.debug("Visit collections")
         for collection in self.trace.get_collections():
             collection.apply(visitor)
 
+        logging.debug("Visit parts")
         for part_entity in self.trace.get_parts():
             part_entity.apply(visitor)
 
+        logging.debug("Visit items")
         for item_entity in self.trace.get_items():
             item_entity.apply(visitor)
 
+        logging.debug("Visit files")
         for file_entity in self.trace.get_files():
             file_entity.apply(visitor)
 
@@ -393,6 +401,9 @@ class AttributeVisitor(ProvenanceVisitor):
         self._get_attributes(item.data_associations, item_entity)
     
     def visit_part(self, part_entity):
+        if part_entity.item_id not in self.factory.item_map:
+            return
+
         logging.debug("Getting attributes for %s %s",
                       part_entity.item_type, part_entity.item_id)
         item = self.factory.item_map[part_entity.item_id]
@@ -446,6 +457,15 @@ class FileProvenanceVisitor(ProvenanceVisitor):
         logging.debug("Getting files for %s %s",
                       item_entity.item_type, item_entity.item_id)
         self._get_files(item.data_associations, ItemFileVisitor(item_entity))
+
+    def visit_part(self, part_entity):
+        if part_entity.item_id not in self.factory.item_map:
+            return
+
+        item = self.factory.item_map[part_entity.item_id]
+        logging.debug("Getting files for %s %s",
+                      part_entity.item_type, part_entity.item_id)
+        self._get_files(item.data_associations, ItemFileVisitor(part_entity))
 
     def visit_job(self, job_activity):
         job = self.factory.job_map[job_activity.job_id]
