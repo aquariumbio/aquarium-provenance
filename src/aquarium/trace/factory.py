@@ -391,6 +391,12 @@ class AttributeVisitor(ProvenanceVisitor):
                       item_entity.item_type, item_entity.item_id)
         item = self.factory.item_map[item_entity.item_id]
         self._get_attributes(item.data_associations, item_entity)
+    
+    def visit_part(self, part_entity):
+        logging.debug("Getting attributes for %s %s",
+                      part_entity.item_type, part_entity.item_id)
+        item = self.factory.item_map[part_entity.item_id]
+        self._get_attributes(item.data_associations, part_entity)
 
     def visit_operation(self, op_activity):
         operation = self.factory.op_map[op_activity.operation_id]
