@@ -19,7 +19,7 @@ class AddPartsVisitor(ProvenanceVisitor):
         """
         Adds the parts for a collection.
         """
-        if collection.parts:
+        if collection.has_parts():
             return
         logging.debug("Adding parts for collection %s", collection.item_id)
         item = self.factory.item_map[collection.item_id]
@@ -195,9 +195,9 @@ class AddPartsVisitor(ProvenanceVisitor):
                 if match:
                     well = well_coordinates(
                         int(match[1]), int(match[2]))
-                    new_id = source_item_id + '/' + well
-                    if self.trace.has_item(new_id):
-                        return self.trace.get_item(new_id)
+                    part_ref = source_item_id + '/' + well
+                    if part_ref in self.part_map:
+                        return self.part_map[part_ref]
                 # TODO: handle bad part ref
         elif len(source_components) == 4:
             # TODO: check this is an identifier
