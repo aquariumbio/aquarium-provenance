@@ -190,11 +190,21 @@ class CollectionEntity(AbstractItemEntity):
 
     def __init__(self, collection):
         self.object_type = collection.object_type
-        self.parts = list()
+        self.part_map = dict()
         super().__init__(item_id=collection.id, item_type='collection')
 
     def add_part(self, part):
-        self.parts.append(part)
+        self.part_map[part.well] = part
+
+    def parts(self):
+        return self.part_map.values()
+
+    def get_part(self, well):
+        if well in self.part_map:
+            return self.part_map[well]
+
+    def has_parts(self):
+        return bool(self.part_map)
 
     def apply(self, visitor):
         visitor.visit_collection(self)
