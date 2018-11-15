@@ -197,7 +197,7 @@ class CollectionEntity(AbstractItemEntity):
         self.part_map[part.well] = part
 
     def parts(self):
-        return self.part_map.values()
+        return list(self.part_map.values())
 
     def get_part(self, well):
         if well in self.part_map:
