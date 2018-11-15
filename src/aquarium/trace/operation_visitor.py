@@ -845,7 +845,11 @@ class ResuspensionOutgrowthVisitor(IGEMPlateGeneratorVisitor):
         logging.debug("Part %s has no source_reference attribute",
                       part.item_id)
 
-        if len(part.sources) != 1:
+        if not part.sources:
+            logging.debug("Part %s has no sources", part.item_id)
+            return
+
+        if len(part.sources) > 1:
             logging.debug("Part %s should only have one source", part.item_id)
             return
 
@@ -853,6 +857,9 @@ class ResuspensionOutgrowthVisitor(IGEMPlateGeneratorVisitor):
         if source_item:
             dest_attribute = source_item.get_attribute('destination')
             if dest_attribute:
+                logging.debug(
+                    "Getting colony for %s from destination attribute of %s",
+                    source_item.item_id, part.item_id)
                 row, column = coordinates_for(part.well)
                 collection_id = part.collection.item_id
                 dest_list = [obj for obj in dest_attribute if (
@@ -868,6 +875,9 @@ class ResuspensionOutgrowthVisitor(IGEMPlateGeneratorVisitor):
                             'colony': dest['source_colony']
                         }
                     })
+                else:
+                    logging.debug("Found more than 1 destination matching %s",
+                                  part.item_id)
 
     def fix_file_generators(self, file_entity: FileEntity):
         """
