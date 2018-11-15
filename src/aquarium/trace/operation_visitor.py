@@ -876,9 +876,13 @@ class ResuspensionOutgrowthVisitor(IGEMPlateGeneratorVisitor):
                             'colony': dest['source_colony']
                         }
                     })
+                    return
                 else:
                     logging.debug("Found more than 1 destination matching %s",
                                   part.item_id)
+                    return
+            logging.debug("Source %s of part %s has no destination attribute",
+                          source_item.item_id, part.item_id)
 
     def fix_file_generators(self, file_entity: FileEntity):
         """
