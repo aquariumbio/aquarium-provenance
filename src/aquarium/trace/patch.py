@@ -24,21 +24,16 @@ class CollectionSourceInferenceVisitor(ProvenanceVisitor):
         if collection_entity.sources:
             return
 
-        entity_id = collection_entity.item_id
-        parts = [entity for _, entity in self.trace.items.items()
-                 if entity.is_part()
-                 and entity.collection.item_id == entity_id]
-
-        sources = set()
-        for part in parts:
+        visited = set()
+        for part in collection_entity.parts():
             for source in part.sources:
                 if source.is_part():
                     source = source.collection
-                if source.item_id not in sources:
+                if source.item_id not in visited:
                     logging.info("using part routing to add source %s to %s",
-                                 source.item_id, entity_id)
+                                 source.item_id, collection_entity.item_id)
                     collection_entity.add_source(source)
-                    sources.add(source.item_id)
+                    visited.add(source.item_id)
 
 
 class FileSourcePruningVisitor(ProvenanceVisitor):
