@@ -24,6 +24,8 @@ class CollectionSourceInferenceVisitor(ProvenanceVisitor):
         if collection_entity.sources:
             return
 
+        logging.debug("Visiting collection %s to get sources from parts",
+                      collection_entity.item_id)
         visited = set()
         for part in collection_entity.parts():
             for source in part.sources:
@@ -34,6 +36,9 @@ class CollectionSourceInferenceVisitor(ProvenanceVisitor):
                                  source.item_id, collection_entity.item_id)
                     collection_entity.add_source(source)
                     visited.add(source.item_id)
+        if not visited:
+            logging.debug("No sources added for collection %s",
+                          collection_entity.item_id)
 
 
 class FileSourcePruningVisitor(ProvenanceVisitor):
