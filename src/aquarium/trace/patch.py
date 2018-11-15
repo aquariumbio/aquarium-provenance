@@ -24,6 +24,11 @@ class CollectionSourceInferenceVisitor(ProvenanceVisitor):
         if collection_entity.sources:
             return
 
+        if not collection_entity.has_parts():
+            logging.debug("Collection %s has no parts",
+                          collection_entity.item_id)
+            return
+
         logging.debug("Visiting collection %s to get sources from parts",
                       collection_entity.item_id)
         visited = set()
