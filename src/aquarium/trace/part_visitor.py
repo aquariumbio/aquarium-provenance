@@ -144,6 +144,13 @@ class AddPartsVisitor(ProvenanceVisitor):
                 if entity.generator and not part_entity.generator:
                     part_entity.add_generator(entity.generator)
 
+                # assumes this is from the part_data attribute
+                # and visit_part can deal with the entries
+                if isinstance(routing_entry, Mapping):
+                    part_entity.add_attribute(routing_entry)
+                    return
+
+                # other cases
                 source_entity = self._get_source(source_id)
                 if source_entity:
                     if source_entity.sample:
