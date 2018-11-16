@@ -155,7 +155,7 @@ class AddPartsVisitor(ProvenanceVisitor):
                                   json.dumps(routing_entry),
                                   part_entity.item_id)
                     part_entity.add_attribute(routing_entry)
-                    return
+                    continue
 
                 # other cases
                 source_entity = self._get_source(source_id)
