@@ -49,10 +49,10 @@ class AddPartsVisitor(ProvenanceVisitor):
                     collection_id=source_id,
                     well=well_coordinates(row, col))
                 if ref in self.part_map:
-                    # TODO: add source collection/parts that don't already exist
+                    # TODO: add source coll/parts that don't already exist
                     source_entity = self.part_map[ref]
             else:
-                source_entity = self.factory.get_item(source_id)
+                source_entity = self.factory.get_item(item_id=source_id)
             if source_entity:
                 part_entity.add_source(source_entity)
             else:
