@@ -3,8 +3,7 @@ import re
 
 from aquarium.provenance import (
     CollectionEntity,
-    FileEntity,
-    PlanTrace
+    FileEntity
 )
 from aquarium.trace.visitor import ProvenanceVisitor, FactoryVisitor
 
@@ -122,4 +121,3 @@ def create_patch_visitor():
     visitor.add_visitor(CollectionSourceInferenceVisitor())
     visitor.add_visitor(FilePrefixVisitor())
     return visitor
-
