@@ -28,9 +28,11 @@ def check_item(trace, entity, stop_list):
         no_error = False
 
     if not entity.generator:
-        logging.warning("%s %s has no generators",
-                        entity.item_type, entity.item_id)
-        no_error = False
+        # don't worry about parts of a collection that doesn't have a generator
+        if not entity.is_part() or entity.collection.generator:
+            logging.warning("%s %s has no generators",
+                            entity.item_type, entity.item_id)
+            no_error = False
     else:
 
         if entity.generator.is_job():
