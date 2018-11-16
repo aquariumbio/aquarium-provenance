@@ -58,7 +58,7 @@ class AddPartsVisitor(ProvenanceVisitor):
                               json.dumps(src_obj), part_entity.item_id)
                 return
 
-            if part_entity.samples_match(source=source_entity,
+            if AddPartsVisitor.samples_match(source=source_entity,
                                          target=part_entity):
                 part_entity.add_source(source_entity)
 
