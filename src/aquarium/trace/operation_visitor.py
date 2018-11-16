@@ -638,7 +638,7 @@ class SynchByODVisitor(MeasurementVisitor):
             source = collection_source.get_part('A1')
             logging.warning("Using %s/A1 (part %s) as WT",
                             collection_source.item_id, source.item_id)
-            part.add_generator(source)
+            part.add_source(source)
             log_source_add(source, part)
             return
 
