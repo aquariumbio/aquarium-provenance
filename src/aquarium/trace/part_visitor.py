@@ -53,11 +53,32 @@ class AddPartsVisitor(ProvenanceVisitor):
                     source_entity = self.part_map[ref]
             else:
                 source_entity = self.factory.get_item(item_id=source_id)
-            if source_entity:
-                part_entity.add_source(source_entity)
-            else:
+            if not source_entity:
                 logging.debug("Source %s for part %s not found",
                               json.dumps(src_obj), part_entity.item_id)
+                return
+
+            if part_entity.samples_match(source=source_entity,
+                                         target=part_entity):
+                part_entity.add_source(source_entity)
+
+    @staticmethod
+    def samples_match(*, source, target):
+        if source.sample:
+            if not target.sample:
+                msg = "Adding sample %s to part %s"
+                logging.debug(msg, source.sample.id,
+                              target.item_id)
+                target.sample = source.sample
+                return True
+            elif source.sample.id != target.sample.id:
+                msg = "Source %s sample %s does not match " \
+                    "part %s sample %s"
+                logging.error(msg, source.item_id,
+                              source.sample.id,
+                              target.item_id,
+                              target.sample.id)
+        return False
 
     @staticmethod
     def get_part_ref(*, collection_id, well):
@@ -160,20 +181,9 @@ class AddPartsVisitor(ProvenanceVisitor):
                 # other cases
                 source_entity = self._get_source(source_id)
                 if source_entity:
-                    if source_entity.sample:
-                        if not part_entity.sample:
-                            msg = "Adding sample %s to part %s"
-                            logging.debug(msg, source_entity.sample.id,
-                                          part_entity.item_id)
-                            part_entity.sample = source_entity.sample
-                        elif source_entity.sample.id != part_entity.sample.id:
-                            msg = "Source %s sample %s does not match " \
-                                "part %s sample %s"
-                            logging.error(msg, source_id,
-                                          source_entity.sample.id,
-                                          part_entity.item_id,
-                                          part_entity.sample.id)
-                            continue
+                    if not AddPartsVisitor.samples_match(
+                            source=source_entity, target=part_entity):
+                        continue
 
                     part_entity.add_source(source_entity)
                     msg = "Adding %s %s as source for %s %s for ref %s"
