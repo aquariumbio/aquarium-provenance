@@ -131,14 +131,18 @@ class AddPartsVisitor(ProvenanceVisitor):
                 if not routing_entry or not isinstance(routing_entry, Mapping):
                     continue
 
-                source_id = AddPartsVisitor._get_source_id(routing_entry)
-
-                if not source_id:
-                    continue
-
                 part_ref = AddPartsVisitor.get_part_ref(
                     collection_id=entity.item_id,
                     well=well_coordinates(i, j))
+
+                source_id = AddPartsVisitor._get_source_id(routing_entry)
+
+                if not source_id:
+                    logging.debug("No source information for %s from %s",
+                                  entity.item_id,
+                                  part_ref)
+                    continue
+
                 part_entity = self._get_part(part_ref=part_ref,
                                              collection=entity)
                 if entity.generator and not part_entity.generator:
