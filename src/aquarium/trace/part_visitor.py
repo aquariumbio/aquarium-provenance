@@ -53,6 +53,7 @@ class AddPartsVisitor(ProvenanceVisitor):
                                      collection=collection)
             self.part_map[part_entity.ref] = part_entity
             self.trace.add_item(part_entity)
+            self.factory.item_map[part_entity.item_id] = part
 
     def _create_parts(self, collection, upload_matrix, routing_matrix):
         self._create_parts_from_samples(collection)
