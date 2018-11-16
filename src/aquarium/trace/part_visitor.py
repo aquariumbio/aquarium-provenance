@@ -29,6 +29,35 @@ class AddPartsVisitor(ProvenanceVisitor):
         routing_matrix = AddPartsVisitor.get_routing_matrix(collection)
         self._create_parts(collection, upload_matrix, routing_matrix)
 
+    def visit_part(self, part_entity: PartEntity):
+        if part_entity.sources:
+            return
+
+        source_list = part_entity.get_attribute('source')
+        if not source_list:
+            return
+
+        logging.debug("Adding sources for part %s", part_entity.item_id)
+        for src_obj in source_list:
+            source_entity = None
+            source_id = str(src_obj['id'])
+            if 'row' in src_obj:  # is a part
+                row = src_obj['row']
+                col = src_obj['column']
+                ref = AddPartsVisitor.get_part_ref(
+                    collection_id=source_id,
+                    well=well_coordinates(row, col))
+                if ref in self.part_map:
+                    source_entity = self.part_map[ref]
+            else:
+                source_entity = self.trace.get_item(source_id)
+            if source_entity:
+                part_entity.add_source(source_entity)
+
+    @staticmethod
+    def get_part_ref(*, collection_id, well):
+        return "{}/{}".format(collection_id, well)
+
     def _collect_parts(self, item):
         for part_association in item.part_associations:
             logging.debug("Getting part %s", part_association.part_id)
@@ -42,9 +71,12 @@ class AddPartsVisitor(ProvenanceVisitor):
                 return None
 
             collection = self.trace.get_item(part_association.collection_id)
-            ref = "{}/{}".format(collection.item_id,
-                                 well_coordinates(part_association.row,
-                                                  part_association.column))
+            ref = AddPartsVisitor.get_part_ref(
+                collection_id=collection.item_id,
+                well=well_coordinates(
+                    part_association.row,
+                    part_association.column)
+            )
             part = part_association.part
             part_entity = PartEntity(part_id=part_association.part_id,
                                      part_ref=ref,
@@ -73,7 +105,9 @@ class AddPartsVisitor(ProvenanceVisitor):
                 if not sample:
                     continue
 
-                part_ref = str(item_id) + '/' + well_coordinates(i, j)
+                part_ref = AddPartsVisitor.get_part_ref(
+                    collection_id=item_id,
+                    well=well_coordinates(i, j))
                 part_entity = self._get_part(part_ref=part_ref,
                                              collection=coll_entity)
                 if generator and not part_entity.generator:
@@ -97,7 +131,9 @@ class AddPartsVisitor(ProvenanceVisitor):
                 if not source_id:
                     continue
 
-                part_ref = str(entity.item_id) + '/' + well_coordinates(i, j)
+                part_ref = AddPartsVisitor.get_part_ref(
+                    collection_id=entity.item_id,
+                    well=well_coordinates(i, j))
                 part_entity = self._get_part(part_ref=part_ref,
                                              collection=entity)
                 if entity.generator and not part_entity.generator:
@@ -146,7 +182,9 @@ class AddPartsVisitor(ProvenanceVisitor):
                 if not upload_id or upload_id <= 0:
                     continue
 
-                part_ref = str(entity.item_id) + '/' + well_coordinates(i, j)
+                part_ref = AddPartsVisitor.get_part_ref(
+                    collection_id=entity.item_id,
+                    well=well_coordinates(i, j))
                 part_entity = self._get_part(part_ref=part_ref,
                                              collection=entity)
                 if entity.generator and not part_entity.generator:
@@ -196,7 +234,9 @@ class AddPartsVisitor(ProvenanceVisitor):
                 if match:
                     well = well_coordinates(
                         int(match[1]), int(match[2]))
-                    part_ref = source_item_id + '/' + well
+                    part_ref = AddPartsVisitor.get_part_ref(
+                        collection_id=source_item_id,
+                        well=well)
                     if part_ref in self.part_map:
                         return self.part_map[part_ref]
                 # TODO: handle bad part ref
@@ -223,7 +263,8 @@ class AddPartsVisitor(ProvenanceVisitor):
             logging.info(msg, well, source_item_id)
             return source_item_entity
 
-        part_ref = source_item_id + '/' + well
+        part_ref = AddPartsVisitor.get_part_ref(collection_id=source_item_id,
+                                                well=well)
         logging.debug("Part reference %s", part_ref)
 
         # this assumes part_ref is well-formed
@@ -235,7 +276,7 @@ class AddPartsVisitor(ProvenanceVisitor):
             sample_id = source_collection.matrix[i][j]
             sample = self.factory.get_sample(sample_id)
             source_part_entity.sample = sample
-            
+
         return source_part_entity
 
     def _get_part(self, *, part_ref, collection=None):
