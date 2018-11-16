@@ -59,26 +59,29 @@ class AddPartsVisitor(ProvenanceVisitor):
                 return
 
             if AddPartsVisitor.samples_match(source=source_entity,
-                                         target=part_entity):
+                                             target=part_entity):
                 part_entity.add_source(source_entity)
 
     @staticmethod
     def samples_match(*, source, target):
-        if source.sample:
-            if not target.sample:
-                msg = "Adding sample %s to part %s"
-                logging.debug(msg, source.sample.id,
-                              target.item_id)
-                target.sample = source.sample
-                return True
-            elif source.sample.id != target.sample.id:
-                msg = "Source %s sample %s does not match " \
-                    "part %s sample %s"
-                logging.error(msg, source.item_id,
-                              source.sample.id,
-                              target.item_id,
-                              target.sample.id)
-        return False
+        if not source.sample:
+            logging.debug("Source %s for %s has no sample",
+                          source.item_id, target.item_id)
+            return False
+
+        if target.sample and source.sample.id != target.sample.id:
+            msg = "Source %s sample %s does not match " \
+                "part %s sample %s"
+            logging.error(msg, source.item_id,
+                          source.sample.id,
+                          target.item_id,
+                          target.sample.id)
+            return False
+
+        logging.debug("Adding sample %s to part %s",
+                      source.sample.id, target.item_id)
+        target.sample = source.sample
+        return True
 
     @staticmethod
     def get_part_ref(*, collection_id, well):
