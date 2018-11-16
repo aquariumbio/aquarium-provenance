@@ -806,9 +806,17 @@ class ResuspensionOutgrowthVisitor(IGEMPlateGeneratorVisitor):
                 logging.error("part %s has no sample", part.item_id)
             elif arg.item.sample.id == part.sample.id:
                 source = arg.item
-        if source:
-            part.add_source(source)
-            log_source_add(source, part)
+        if not source:
+            return
+
+        part.add_source(source)
+        log_source_add(source, part)
+
+        # add collection source if needed
+        collection_source = source
+        if collection_source.is_part():
+            collection_source = collection_source.collection
+        part.collection.add_source(collection_source)
 
     def add_colony_attribute(self, part: PartEntity):
         logging.debug("Searching for colony attribute on part %s",
