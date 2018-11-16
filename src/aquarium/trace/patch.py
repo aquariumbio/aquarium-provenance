@@ -118,16 +118,8 @@ class FilePrefixVisitor(ProvenanceVisitor):
 
 def create_patch_visitor():
     visitor = FactoryVisitor()
-    visitor.add_visitor(FixMessageVisitor())
     visitor.add_visitor(FileSourcePruningVisitor())
     visitor.add_visitor(CollectionSourceInferenceVisitor())
     visitor.add_visitor(FilePrefixVisitor())
     return visitor
 
-
-class FixMessageVisitor(ProvenanceVisitor):
-    def __init__(self, trace=None):
-        super().__init__(trace)
-
-    def visit_plan(self, plan: PlanTrace):
-        logging.info("Applying heuristic fixes to plan %s", plan.plan_id)
