@@ -622,20 +622,28 @@ class SynchByODVisitor(MeasurementVisitor):
 
         logging.warning("Part %s has no sources in SynchByOD", part.item_id)
 
-        if part.well == 'H7':
-            logging.warning(
-                "Part %s is positive sytox wildtype control", part.item_id)
-        elif part.well == 'H8':
-            logging.warning(
-                "Part %s is negative sytox wildtype control", part.item_id)
-        elif part.well == 'H9':
-            logging.warning("Part %s is positive gfp control", part.item_id)
-
         collection_source = next(iter(part.collection.sources))
         if not collection_source.generator:
             logging.warning("Source %s has no generator",
                             collection_source.generator)
             return
+
+        if part.well == 'H7' or part.well == 'H8':
+            if part.well == 'H7':
+                logging.warning(
+                    "Part %s is positive sytox wildtype control", part.item_id)
+            elif part.well == 'H8':
+                logging.warning(
+                    "Part %s is negative sytox wildtype control", part.item_id)
+            source = collection_source.get_part('A1')
+            logging.warning("Using %s/A1 (part %s) as WT",
+                            collection_source.item_id, source.item_id)
+            part.add_generator(source)
+            log_source_add(source, part)
+            return
+
+        if part.well == 'H9':
+            logging.warning("Part %s is positive gfp control", part.item_id)
 
         # Assumes preceded by operation that knows number of replicates and
         # input plates
