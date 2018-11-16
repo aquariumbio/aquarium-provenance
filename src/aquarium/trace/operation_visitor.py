@@ -752,7 +752,7 @@ class YeastMatingVisitor(OperationProvenanceVisitor):
     def visit_item(self, item_entity):
         if not item_entity.generator:
             return
-        logging.debug("Visiting item %s for Yeast Mating")
+        logging.debug("Visiting item %s for Yeast Mating", item_entity.item_id)
         if self.is_match(item_entity.generator):
             for arg in item_entity.generator.inputs:
                 if arg.is_item():
