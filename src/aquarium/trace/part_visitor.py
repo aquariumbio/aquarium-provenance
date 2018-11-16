@@ -1,3 +1,4 @@
+import json
 import logging
 import re
 from aquarium.provenance import (CollectionEntity, PartEntity)
@@ -53,6 +54,9 @@ class AddPartsVisitor(ProvenanceVisitor):
                 source_entity = self.trace.get_item(source_id)
             if source_entity:
                 part_entity.add_source(source_entity)
+            else:
+                logging.debug("Source %s for part %s not found",
+                              json.dumps(src_obj), part_entity.item_id)
 
     @staticmethod
     def get_part_ref(*, collection_id, well):
