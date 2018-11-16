@@ -13,6 +13,9 @@ from aquarium.provenance import (
 from aquarium.trace.visitor import ProvenanceVisitor, FactoryVisitor
 from util.plate import well_coordinates, coordinates_for
 
+# TODO: Add source routing for output of Yeast Lysate
+# TODO: Add source routing for output of Colony PCR
+
 
 class ChallengeProblemTraceVisitor(ProvenanceVisitor):
 
