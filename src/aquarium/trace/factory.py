@@ -14,6 +14,7 @@ from aquarium.provenance import (
     PlanTrace)
 from aquarium.trace.visitor import FactoryVisitor, ProvenanceVisitor
 from aquarium.trace.part_visitor import AddPartsVisitor
+from aquarium.trace.patch import create_patch_visitor
 
 
 class TraceFactory:
@@ -44,13 +45,7 @@ class TraceFactory:
 
         Associated uploads are visited last
         """
-        primary_visitor = FactoryVisitor()
-        primary_visitor.add_visitor(JobVisitor())
-        primary_visitor.add_visitor(AttributeVisitor())
-        primary_visitor.add_visitor(AddPartsVisitor())
-        primary_visitor.add_visitor(FileProvenanceVisitor())
         trace = PlanTrace(plan_id=plan.id, name=plan.name)
-
         factory = TraceFactory(
             session=session,
             plan=plan,
@@ -60,15 +55,19 @@ class TraceFactory:
         for operation in plan.operations:
             factory._add_operation(operation)
 
-        # Apply the primary visitor first, and then the passed in visitor
-        primary_visitor.add_trace(trace)
-        primary_visitor.add_factory(factory)
+        # Apply the primary visitor first, the given visitor, and then patch
+        primary_visitor = FactoryVisitor()
+        primary_visitor.add_visitor(JobVisitor())
+        primary_visitor.add_visitor(AttributeVisitor())
+        primary_visitor.add_visitor(AddPartsVisitor())
+        primary_visitor.add_visitor(FileProvenanceVisitor())
         factory._apply(primary_visitor)
 
         if visitor:
-            visitor.add_trace(trace)
-            visitor.add_factory(factory)
             factory._apply(visitor)
+
+        patch_visitor = create_patch_visitor()
+        factory._apply(patch_visitor)
 
         return factory.trace
 
