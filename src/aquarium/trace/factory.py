@@ -402,6 +402,9 @@ class AttributeVisitor(ProvenanceVisitor):
         self._get_attributes(item.data_associations, item_entity)
 
     def visit_part(self, part_entity):
+        if part_entity.item_id == part_entity.ref:
+            return
+
         if part_entity.item_id not in self.factory.item_map:
             logging.debug("Part %s not in factory item_map",
                           part_entity.item_id)
