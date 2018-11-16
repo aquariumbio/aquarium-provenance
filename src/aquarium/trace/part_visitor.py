@@ -147,6 +147,9 @@ class AddPartsVisitor(ProvenanceVisitor):
                 # assumes this is from the part_data attribute
                 # and visit_part can deal with the entries
                 if isinstance(routing_entry, Mapping):
+                    logging.debug("Adding %s to %s",
+                                  json.dumps(routing_entry),
+                                  part_entity.item_id)
                     part_entity.add_attribute(routing_entry)
                     return
 
