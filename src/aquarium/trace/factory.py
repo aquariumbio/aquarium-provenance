@@ -400,9 +400,11 @@ class AttributeVisitor(ProvenanceVisitor):
                       item_entity.item_type, item_entity.item_id)
         item = self.factory.item_map[item_entity.item_id]
         self._get_attributes(item.data_associations, item_entity)
-    
+
     def visit_part(self, part_entity):
         if part_entity.item_id not in self.factory.item_map:
+            logging.debug("Part %s not in factory item_map",
+                          part_entity.item_id)
             return
 
         logging.debug("Getting attributes for %s %s",
@@ -461,6 +463,8 @@ class FileProvenanceVisitor(ProvenanceVisitor):
 
     def visit_part(self, part_entity):
         if part_entity.item_id not in self.factory.item_map:
+            logging.debug("Part %s not in factory item_map",
+                          part_entity.item_id)
             return
 
         item = self.factory.item_map[part_entity.item_id]
