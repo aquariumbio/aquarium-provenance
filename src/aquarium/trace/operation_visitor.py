@@ -824,10 +824,22 @@ class ResuspensionOutgrowthVisitor(IGEMPlateGeneratorVisitor):
         # newest versions of protocol should have a source attribute
         source_attribute = part.get_attribute('source')
         if source_attribute:
-            logging.error(
-                "Part %s has source attribute, but not yet implemented",
-                part.item_id
-            )
+            logging.debug("Getting colony for %s from source attribute",
+                          part.item_id)
+            src_list = [obj for obj in source_attribute if (
+                'source_colony' in obj
+            )]
+            if len(src_list) == 1:
+                src = next(iter(src_list))
+                part.add_attribute({
+                    'source_colony': {
+                        'yeast_plate': src['id'],
+                        'colony': src['source_colony']
+                    }
+                })
+            else:
+                logging.error("Part %s has %s source colonies",
+                              part.item_id, len(src_list))
             return
         logging.debug("Part %s has no source attribute", part.item_id)
 
@@ -886,7 +898,7 @@ class ResuspensionOutgrowthVisitor(IGEMPlateGeneratorVisitor):
                     })
                     return
                 else:
-                    logging.debug("Found more than 1 destination matching %s",
+                    logging.error("Found more than 1 destination matching %s",
                                   part.item_id)
                     return
             logging.debug("Source %s of part %s has no destination attribute",
