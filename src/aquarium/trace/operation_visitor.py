@@ -628,7 +628,7 @@ class SynchByODVisitor(MeasurementVisitor):
         collection_source = next(iter(part.collection.sources))
         if not collection_source.generator:
             logging.warning("Source %s has no generator",
-                            collection_source.generator)
+                            collection_source.item_id)
             return
 
         if part.well == 'H7' or part.well == 'H8':
