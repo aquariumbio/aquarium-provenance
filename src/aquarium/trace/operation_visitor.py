@@ -593,6 +593,24 @@ class SynchByODVisitor(MeasurementVisitor):
                              'instrument_configuration': self.synergy_url()
                          })
 
+    def visit_collection(self, collection: CollectionEntity):
+        super().visit_collection(collection)
+
+        if not collection.generator:
+            log_missing_generator(collection)
+            return
+
+        if self.is_match(collection.generator):
+            self.add_source(collection, '16hr_od')
+            self.add_source(collection, '16hr_gfp')
+
+    def add_source(self, collection, attr_name):
+        upload_id = collection.get_attribute(attr_name)
+        if upload_id:
+            file_entity = self.trace.get_file(upload_id)
+            if file_entity and not file_entity.sources:
+                file_entity.add_source(collection)
+
     def visit_part(self, part: PartEntity):
         super().visit_part(part)
 
