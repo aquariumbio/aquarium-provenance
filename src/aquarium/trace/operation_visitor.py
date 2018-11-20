@@ -463,8 +463,10 @@ class MeasureODAndGFP(MeasurementVisitor, PassthruOperationVisitor):
 
         if not self.is_match(collection.generator):
             return
+        logging.debug("Visit %s for measureODandGFP", collection.item_id)
 
         if not collection.sources:
+            logging.debug("Collection %s has no sources", collection.item_id)
             return
 
         source = next(iter(collection.sources))
@@ -479,6 +481,7 @@ class MeasureODAndGFP(MeasurementVisitor, PassthruOperationVisitor):
 
     def _add_source(self, *, item, upload_id):
         if not upload_id:
+            logging.debug("No ID for attribute")
             return
 
         file_entity = self.trace.get_file(upload_id)
