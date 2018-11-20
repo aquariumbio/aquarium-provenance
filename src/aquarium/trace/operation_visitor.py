@@ -139,7 +139,7 @@ class MeasurementVisitor(OperationProvenanceVisitor):
     """
 
     instruments_url = 'agave://data-sd2e-community/biofab/instruments'
-    accuri_path = 'accuri/5539/11272017/cytometer_configuration.json'
+    accuri_path = 'accuri/5539/10202018/cytometer_configuration.json'
     synergy_path = 'synergy_ht/216503/03132018/platereader_configuration.json'
     accuri_channels = ['FL1-A', 'FL4-A', 'FSC-A', 'SSC-A']
 
