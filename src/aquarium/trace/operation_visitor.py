@@ -49,7 +49,11 @@ class OperationProvenanceVisitor(ProvenanceVisitor):
     @abc.abstractmethod
     def __init__(self, *, trace, name):
         self.name = name
+        self.factory = None
         super().__init__(trace)
+    
+    def add_factory(self, factory):
+        self.factory = factory
 
     def is_match(self, generator):
         if generator is None:
@@ -484,10 +488,13 @@ class MeasureODAndGFP(MeasurementVisitor, PassthruOperationVisitor):
             logging.debug("No ID for attribute")
             return
 
-        file_entity = self.trace.get_file(upload_id)
-        if not file_entity:
+        if upload_id not in self.factory.uploads:
+            logging.debug("No file with upload ID %s", upload_id)
             return
+
+        file_entity = self.factory.uploads[upload_id]
         if file_entity.sources:
+            logging.debug("File with upload %s has sources", upload_id)
             return
 
         file_entity.add_source(item)
