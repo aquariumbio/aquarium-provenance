@@ -47,6 +47,7 @@ class UploadManager:
     def _upload_directory(self, *, path, file_list):
         files = list()
         for file_entity in file_list:
+            logging.debug("Uploading %s", file_entity.name)
             content_type = self._get_content_type(file_entity)
             try:
                 file_object = file_entity.upload.data
