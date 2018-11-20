@@ -454,6 +454,44 @@ class MeasureODAndGFP(MeasurementVisitor, PassthruOperationVisitor):
                              'instrument_configuration': self.synergy_url()
                          })
 
+    def visit_collection(self, collection: CollectionEntity):
+        super().visit_collection(collection)
+
+        if not collection.generator:
+            log_missing_generator(collection)
+            return
+
+        if not self.is_match(collection.generator):
+            return
+
+        if not collection.sources:
+            return
+
+        source = next(iter(collection.sources))
+        self._add_source(
+            item=collection,
+            upload_id=source.get_attribute('16hr_od')
+        )
+        self._add_source(
+            item=collection,
+            upload_id=source.get_attribute('16hr_gfp')
+        )
+
+    def _add_source(self, *, item, upload_id):
+        if not upload_id:
+            return
+
+        file_entity = self.trace.get_file(upload_id)
+        if not file_entity:
+            return
+        if file_entity.sources:
+            return
+
+        file_entity.add_source(item)
+
+        if not file_entity.generator:
+            file_entity.add_generator(item.generator)
+
     def visit_part(self, part):
         if self.is_match(part.generator):
             super().visit_part(part)
@@ -592,24 +630,6 @@ class SynchByODVisitor(MeasurementVisitor):
                              'measurement_type': 'PLATE_READER',
                              'instrument_configuration': self.synergy_url()
                          })
-
-    def visit_collection(self, collection: CollectionEntity):
-        super().visit_collection(collection)
-
-        if not collection.generator:
-            log_missing_generator(collection)
-            return
-
-        if self.is_match(collection.generator):
-            self.add_source(collection, '16hr_od')
-            self.add_source(collection, '16hr_gfp')
-
-    def add_source(self, collection, attr_name):
-        upload_id = collection.get_attribute(attr_name)
-        if upload_id:
-            file_entity = self.trace.get_file(upload_id)
-            if file_entity and not file_entity.sources:
-                file_entity.add_source(collection)
 
     def visit_part(self, part: PartEntity):
         super().visit_part(part)
