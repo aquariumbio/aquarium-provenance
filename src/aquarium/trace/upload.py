@@ -58,7 +58,7 @@ class UploadManager:
                 )
                 raise
             hash_sha = hashlib.sha256()
-            hash_sha.update(object)
+            hash_sha.update(file_object)
             file_entity.check_sum = str(hash_sha.hexdigest())
             self._put_object(path=path,
                              filename=file_entity.name,
