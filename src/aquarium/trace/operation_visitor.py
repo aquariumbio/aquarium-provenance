@@ -10,7 +10,7 @@ from aquarium.provenance import (
     PartEntity,
     PlanTrace
 )
-from aquarium.trace.visitor import ProvenanceVisitor, FactoryVisitor
+from aquarium.trace.visitor import ProvenanceVisitor, BatchVisitor
 from util.plate import well_coordinates, coordinates_for
 
 # TODO: Add source routing for output of Yeast Lysate
@@ -49,11 +49,7 @@ class OperationProvenanceVisitor(ProvenanceVisitor):
     @abc.abstractmethod
     def __init__(self, *, trace, name):
         self.name = name
-        self.factory = None
         super().__init__(trace)
-    
-    def add_factory(self, factory):
-        self.factory = factory
 
     def is_match(self, generator):
         if generator is None:
@@ -519,7 +515,6 @@ class PlateReaderMeasurementVisitor(
         IGEMMeasurementVisitor, PassthruOperationVisitor):
 
     def __init__(self, trace=None):
-        self.factory = None
         self.calibration_plate = None
         super().__init__(trace=trace,
                          name='Plate Reader Measurement',
@@ -527,10 +522,6 @@ class PlateReaderMeasurementVisitor(
                              'measurement_type': 'PLATE_READER',
                              'instrument_configuration': self.synergy_url()
                          })
-
-    def add_factory(self, factory):
-        self.factory = factory
-        # TODO: deal with mismatched factory.trace.plan_id with trace.plan_id
 
     def visit_collection(self, collection):
         if not collection.generator:
@@ -995,12 +986,7 @@ class ResuspensionOutgrowthVisitor(IGEMPlateGeneratorVisitor):
 
 class NCInoculationAndMediaVisitor(OperationProvenanceVisitor):
     def __init__(self, trace=None):
-        self.factory = None
         super().__init__(trace=trace, name='NC_Inoculation & Media')
-
-    def add_factory(self, factory):
-        self.factory = factory
-        # TODO: deal with mismatched factory.trace.plan_id with trace.plan_id
 
     def visit_operation(self, op_activity: OperationActivity):
 
@@ -1266,7 +1252,7 @@ def create_operation_visitor():
     Because some visitors propagate attributes, it is best to have them in
     order they commonly occur in plans or there may be nothing to propagate.
     """
-    visitor = FactoryVisitor()
+    visitor = BatchVisitor()
 
     # may involve adding media
     visitor.add_visitor(YeastMatingVisitor())

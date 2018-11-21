@@ -9,12 +9,8 @@ from collections.abc import Mapping
 
 class AddPartsVisitor(ProvenanceVisitor):
     def __init__(self, trace=None):
-        self.factory = None
         self.part_map = dict()  # part ref string -> part_entity
         super().__init__(trace)
-
-    def add_factory(self, factory):
-        self.factory = factory
 
     def visit_collection(self, collection: CollectionEntity):
         """

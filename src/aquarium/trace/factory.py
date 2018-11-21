@@ -12,7 +12,7 @@ from aquarium.provenance import (
     OperationInput,
     OperationParameter,
     PlanTrace)
-from aquarium.trace.visitor import FactoryVisitor, ProvenanceVisitor
+from aquarium.trace.visitor import BatchVisitor, ProvenanceVisitor
 from aquarium.trace.part_visitor import AddPartsVisitor
 from aquarium.trace.patch import create_patch_visitor
 
@@ -56,7 +56,7 @@ class TraceFactory:
             factory._add_operation(operation)
 
         # Apply the primary visitor first, the given visitor, and then patch
-        primary_visitor = FactoryVisitor()
+        primary_visitor = BatchVisitor()
         primary_visitor.add_visitor(JobVisitor())
         primary_visitor.add_visitor(AttributeVisitor())
         primary_visitor.add_visitor(AddPartsVisitor())
@@ -383,11 +383,7 @@ class AttributeVisitor(ProvenanceVisitor):
     """
 
     def __init__(self):
-        self.factory = None
         super().__init__()
-
-    def add_factory(self, factory):
-        self.factory = factory
 
     def visit_collection(self, collection: CollectionEntity):
         logging.debug("Getting attributes for %s %s",
@@ -446,11 +442,7 @@ class FileProvenanceVisitor(ProvenanceVisitor):
     """
 
     def __init__(self):
-        self.factory = None
         super().__init__()
-
-    def add_factory(self, factory):
-        self.factory = factory
 
     def visit_collection(self, collection: CollectionEntity):
         item = self.factory.item_map[collection.item_id]
@@ -521,13 +513,9 @@ class FileProvenanceVisitor(ProvenanceVisitor):
 
 class JobVisitor(ProvenanceVisitor):
     def __init__(self):
-        self.factory = None
         self.visited = set()
         self.op_job_map = dict()  # operation_id -> job_activity
         super().__init__()
-
-    def add_factory(self, factory):
-        self.factory = factory
 
     def visit_operation(self, op_activity):
         if op_activity.operation_id not in self.visited:

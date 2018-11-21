@@ -5,7 +5,7 @@ from aquarium.provenance import (
     CollectionEntity,
     FileEntity
 )
-from aquarium.trace.visitor import ProvenanceVisitor, FactoryVisitor
+from aquarium.trace.visitor import ProvenanceVisitor, BatchVisitor
 
 
 class CollectionSourceInferenceVisitor(ProvenanceVisitor):
@@ -116,7 +116,7 @@ class FilePrefixVisitor(ProvenanceVisitor):
 
 
 def create_patch_visitor():
-    visitor = FactoryVisitor()
+    visitor = BatchVisitor()
     visitor.add_visitor(FileSourcePruningVisitor())
     visitor.add_visitor(CollectionSourceInferenceVisitor())
     visitor.add_visitor(FilePrefixVisitor())

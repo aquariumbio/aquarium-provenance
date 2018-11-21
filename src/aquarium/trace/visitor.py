@@ -15,9 +15,10 @@ class ProvenanceVisitor(abc.ABC):
     @abc.abstractmethod
     def __init__(self, trace=None):
         self.trace = trace
+        self.factory = None
 
     def add_factory(self, factory):
-        pass
+        self.factory = factory
 
     def add_trace(self, trace):
         self.trace = trace
@@ -50,6 +51,11 @@ class BatchVisitor(ProvenanceVisitor):
         self.visitors = list()
         super().__init__()
 
+    def add_factory(self, factory):
+        self.factory = factory
+        for visitor in self.visitors:
+            visitor.add_factory(self.factory)
+
     def add_trace(self, trace):
         for visitor in self.visitors:
             visitor.add_trace(trace)
@@ -58,6 +64,8 @@ class BatchVisitor(ProvenanceVisitor):
     def add_visitor(self, visitor):
         if self.trace:
             visitor.add_trace(self.trace)
+        if self.factory:
+            visitor.add_factory(self.factory)
         self.visitors.append(visitor)
 
     def visit_collection(self, collection):
@@ -88,19 +96,3 @@ class BatchVisitor(ProvenanceVisitor):
         for visitor in self.visitors:
             operation.apply(visitor)
 
-
-class FactoryVisitor(BatchVisitor):
-
-    def __init__(self):
-        self.factory = None
-        super().__init__()
-
-    def add_factory(self, factory):
-        self.factory = factory
-        for visitor in self.visitors:
-            visitor.add_factory(self.factory)
-
-    def add_visitor(self, visitor):
-        if self.factory:
-            visitor.add_factory(self.factory)
-        super().add_visitor(visitor)
