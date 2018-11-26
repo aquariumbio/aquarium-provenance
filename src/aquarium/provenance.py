@@ -284,6 +284,7 @@ class AbstractFileEntity(AbstractEntity):
     def __init__(self, *, name):
         self.name = name
         self.id = AbstractFileEntity._get_id()
+        self.check_sum = None
         super().__init__()
 
     def __eq__(self, other):
@@ -313,6 +314,10 @@ class AbstractFileEntity(AbstractEntity):
         file_dict = dict()
         file_dict['id'] = str(self.id)
         file_dict['filename'] = self.get_path(directory=path)
+        if self.type:
+            file_dict['type'] = self.type.name
+        if self.check_sum:
+            file_dict['sha256'] = self.check_sum
         return {**file_dict, **entity_dict}
 
     def add_source(self, entity):
@@ -341,17 +346,12 @@ class FileEntity(AbstractFileEntity):
         self.size = upload.size
         self.job = job
         self.upload = upload
-        self.check_sum = None
         super().__init__(name=upload.name)
 
     def as_dict(self, *, path=None):
         file_dict = super().as_dict(path=path)
         file_dict['upload_id'] = self.upload_id
         file_dict['size'] = self.size
-        if self.type:
-            file_dict['type'] = self.type
-        if self.check_sum:
-            file_dict['sha256'] = self.check_sum
         return file_dict
 
 
