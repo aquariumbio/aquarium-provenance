@@ -3,6 +3,8 @@ import json
 import logging
 import os
 
+from aquarium.provenance import FileTypes
+
 
 class UploadManager:
 
@@ -77,9 +79,9 @@ class UploadManager:
 
     def _get_content_type(self, file_entity):
         content_type = file_entity.upload.upload_content_type
-        if file_entity.type == 'FCS':
+        if file_entity.type == FileTypes.FCS:
             content_type = 'application/octet-stream'
-        elif file_entity.type == 'CSV':
+        elif file_entity.type == FileTypes.CSV:
             content_type = 'text/csv'
         return content_type
 
