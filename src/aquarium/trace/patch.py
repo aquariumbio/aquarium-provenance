@@ -82,7 +82,7 @@ class FileSourcePruningVisitor(ProvenanceVisitor):
             return
 
         source = self.trace.get_item(file_item_id)
-        file_entity.sources = [source]
+        file_entity.sources = {source}
 
 
 class FilePrefixVisitor(ProvenanceVisitor):
