@@ -14,6 +14,7 @@ import abc
 import logging
 import os
 from collections import defaultdict
+from enum import Enum, auto
 
 
 class AttributesMixin(abc.ABC):
@@ -264,6 +265,12 @@ class PartEntity(AbstractItemEntity):
         return True
 
 
+class FileTypes(Enum):
+    CSV = auto()
+    FCS = auto()
+    XML = auto()
+
+
 class AbstractFileEntity(AbstractEntity):
     _id_counter = 0
 
@@ -288,9 +295,11 @@ class AbstractFileEntity(AbstractEntity):
     def file_type(self):
         _, extension = os.path.splitext(self.name)
         if extension == '.fcs':
-            return 'FCS'
+            return FileTypes.FCS
         if extension == '.csv':
-            return 'CSV'
+            return FileTypes.CSV
+        if extension == '.xml':
+            return FileTypes.XML
     type = property(file_type)
 
     def get_path(self, *, directory=None):
