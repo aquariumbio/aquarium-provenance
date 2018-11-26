@@ -1325,5 +1325,6 @@ def create_operation_visitor():
     visitor.add_visitor(FlowCytometry96WellVisitor())
     visitor.add_visitor(FlowCytometry96WellOldVisitor())
     visitor.add_visitor(CytometerBeadCalibration())
+    visitor.add_visitor(SortYeastDisplayVisitor())
 
     return visitor
