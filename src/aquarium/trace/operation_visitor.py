@@ -6,6 +6,7 @@ import re
 from aquarium.provenance import (
     CollectionEntity,
     FileEntity,
+    FileTypes,
     OperationActivity,
     PartEntity,
     PlanTrace
@@ -140,12 +141,18 @@ class MeasurementVisitor(OperationProvenanceVisitor):
 
     instruments_url = 'agave://data-sd2e-community/biofab/instruments'
     accuri_path = 'accuri/5539/10202018/cytometer_configuration.json'
+    aria_path = 'facsaria_sorp/P65011000073/cytometer_configuration.json'
     synergy_path = 'synergy_ht/216503/03132018/platereader_configuration.json'
+    facs_aria_channels = []
     accuri_channels = ['FL1-A', 'FL4-A', 'FSC-A', 'SSC-A']
 
     @classmethod
     def accuri_url(cls):
         return "{}/{}".format(cls.instruments_url, cls.accuri_path)
+
+    @classmethod
+    def facs_aria_url(cls):
+        return "{}/{}".format(cls.instruments_url, cls.aria_path)
 
     @classmethod
     def synergy_url(cls):
@@ -1227,6 +1234,52 @@ class NCPlateReaderInductionVisitor(PassthruOperationVisitor):
                      'file', file_entity.id)
         file_entity.add_generator(collection.generator)
         log_generator_add(collection.generator, 'file', file_entity.id)
+
+
+class SortYeastDisplayVisitor(CytometryOperationVisitor):
+    def __init__(self, trace=None):
+        super().__init__(
+            trace=trace,
+            name='Sort Yeast Display Library',
+            measurement={
+                'measurement_type': 'FLOW',
+                'instrument_configuration': self.facs_aria_url(),
+                'channels': self.facs_aria_channels
+            }
+        )
+
+    def visit_file(self, file_entity: FileEntity):
+        if not file_entity.generator:
+            logging.debug("File %s has no generator", file_entity.id)
+            return
+
+        if not self.is_match(file_entity.generator):
+            return
+
+        logging.debug("Visiting file %s for Sort Yeast Display Library",
+                      file_entity.id)
+
+        if not file_entity.sources:
+            logging.debug("File %s has no sources", file_entity.id)
+            return
+
+        # fcs file source is input library
+        if file_entity.type == FileTypes.FCS:
+            input_list = file_entity.generator.get_named_inputs(
+                'Labeled Yeast Library')
+            arg = next(iter(input_list))
+            source = arg.item
+            file_entity.sources = {source}
+            logging.debug("Setting sources of FCS file %s to %s %s",
+                          file_entity.id, source.item_type, source.item_id)
+            return
+
+        # xml file has no source
+        if file_entity.type == FileTypes.XML:
+            logging.debug("Setting XML file %s to have no sources",
+                          file_entity.id)
+            file_entity.sources = {}
+            return
 
 
 def log_missing_generator(item_entity):
