@@ -1,3 +1,12 @@
+"""
+Defines provenance visitors for a subset of UW BIOFAB operation types.
+
+These visitors modify a provenance trace based on the particular operation type,
+mostly to add details that were not added by some version of the operation type
+code.
+
+"""
+
 import abc
 import json
 import logging

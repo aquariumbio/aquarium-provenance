@@ -272,6 +272,9 @@ class FileTypes(Enum):
 
 
 class AbstractFileEntity(AbstractEntity):
+    """
+    An abstract class for file entities. 
+    """
     _id_counter = 0
 
     @classmethod
