@@ -217,8 +217,12 @@ class TraceFactory:
         file_entity = None
         upload = self.session.Upload.find(upload_id)
         if upload:
+            file_job = self._get_job(upload.job.id)
+            if not file_job:
+                logging.debug("Job %s of file upload %s is not in plan",
+                              upload.job.id, upload_id)
             file_entity = FileEntity(upload=upload,
-                                     job=self._get_job(upload.job.id))
+                                     job=file_job)
             self.trace.add_file(file_entity)
             self.uploads[upload_id] = file_entity
         else:
@@ -272,6 +276,9 @@ class TraceFactory:
             return self.trace.get_job(job_id)
 
         job = self.session.Job.find(job_id)
+        if not job:
+            logging.debug("No job %s in database", job_id)
+
         self.job_map[str(job_id)] = job
         start_time = job.start_time
         end_time = job.end_time
@@ -283,6 +290,10 @@ class TraceFactory:
                 op_activity.start_time = start_time
                 op_activity.end_time = end_time
                 operations.append(op_activity)
+
+        if not operations:
+            logging.debug("Job %s has no operations in plan", job_id)
+            return None
 
         logging.debug("Creating job %s", job_id)
         job_activity = JobActivity(job=job,
@@ -469,6 +480,7 @@ class FileProvenanceVisitor(ProvenanceVisitor):
 
     def visit_job(self, job_activity):
         job = self.factory.job_map[job_activity.job_id]
+        logging.debug("Getting files for job %s", job_activity.job_id)
         for upload in job.uploads:
             self.factory.get_file(upload_id=upload['id'])
 
@@ -543,8 +555,9 @@ class JobVisitor(ProvenanceVisitor):
             return None
 
         job_activity = self.factory._get_job(job.id)
-        for op in job_activity.operations:
-            self.op_job_map[op.operation_id] = job_activity
+        if job_activity:
+            for op in job_activity.operations:
+                self.op_job_map[op.operation_id] = job_activity
 
         return job_activity
 
