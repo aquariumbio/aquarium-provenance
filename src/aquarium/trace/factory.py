@@ -145,6 +145,9 @@ class TraceFactory:
         """
         item_id = field_value.child_item_id
         if item_id:
+            if field_value.row and field_value.column:
+                logging.debug("Item %s appears to be a part at [%s,%s]",
+                              item_id, field_value.row, field_value.column)
             item_entity = self.get_item(item_id=item_id)
             routing_id = self._get_routing_id(field_value, operation_id)
             if routing_id:
