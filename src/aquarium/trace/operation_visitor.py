@@ -53,6 +53,8 @@ class ChallengeProblemTraceVisitor(ProvenanceVisitor):
                 plan.add_attribute({exp_ref_attr: 'Yeast-Gates'})
             elif self.challenge_problem == 'nc':
                 plan.add_attribute({exp_ref_attr: 'NovelChassis-NAND-Gate'})
+            elif self.challenge_problem == 'ps':
+                logging.error('no experiment reference for protein design')
 
 
 class OperationProvenanceVisitor(ProvenanceVisitor):
@@ -1243,6 +1245,28 @@ class NCPlateReaderInductionVisitor(PassthruOperationVisitor):
                      'file', file_entity.id)
         file_entity.add_generator(collection.generator)
         log_generator_add(collection.generator, 'file', file_entity.id)
+
+
+class RunPrepouredGelVisitor(OperationProvenanceVisitor):
+    def __init__(self, trace=None):
+        super().__init__(
+            trace=trace,
+            name='Run Pre-poured Gel'
+        )
+
+    def visit_part(self, part: PartEntity):
+        if part.sources:
+            return
+
+        if not part.generator:
+            log_missing_generator(part)
+            return
+
+        logging.debug("Visiting part %s for operation %s",
+                      part.item_id, self.name)
+        input_list = part.generator.get_named_inputs('Fragment')
+        # self.factory.session.FieldValue.find()
+        pass
 
 
 class SortYeastDisplayVisitor(CytometryOperationVisitor):
