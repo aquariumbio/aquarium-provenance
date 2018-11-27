@@ -221,6 +221,7 @@ class TraceFactory:
             if not file_job:
                 logging.debug("Job %s of file upload %s is not in plan",
                               upload.job.id, upload_id)
+                return None
             file_entity = FileEntity(upload=upload,
                                      job=file_job)
             self.trace.add_file(file_entity)
@@ -509,7 +510,7 @@ class FileProvenanceVisitor(ProvenanceVisitor):
         for association in associations:
             upload_id = None
             if association.upload:
-                logging.debug("Association %s is a file %s",
+                logging.debug("Association upload %s is a file %s",
                               association.key, association.upload.id)
                 upload_id = association.upload.id
             elif association.object:
