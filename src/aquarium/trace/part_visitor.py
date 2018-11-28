@@ -15,8 +15,6 @@ class AddPartsVisitor(ProvenanceVisitor):
         """
         Adds the parts for a collection.
         """
-        if collection.has_parts():
-            return
         logging.debug("Adding parts for collection %s", collection.item_id)
         item = self.factory.item_map[collection.item_id]
         self._collect_parts(item)
