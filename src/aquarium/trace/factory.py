@@ -16,7 +16,7 @@ from aquarium.provenance import (
 from aquarium.trace.visitor import BatchVisitor, ProvenanceVisitor
 from aquarium.trace.part_visitor import AddPartsVisitor
 from aquarium.trace.patch import create_patch_visitor
-from util.plate import well_coordinates
+from util.plate import well_coordinates, coordinates_for
 
 
 class TraceFactory:
@@ -288,7 +288,13 @@ class TraceFactory:
             return self.trace.get_item(part_ref)
 
         if part_id is None:
-            part_id = part_ref
+            if row is None or column is None:
+                (row, column) = coordinates_for(well)
+            part = collection.part(row, column)
+            if part:
+                part_id = part.id
+            else:
+                part_id = part_ref
 
         part_entity = PartEntity(part_id=part_id, part_ref=part_ref,
                                  collection=collection)
