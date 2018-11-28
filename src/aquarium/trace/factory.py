@@ -290,7 +290,8 @@ class TraceFactory:
         if part_id is None:
             if row is None or column is None:
                 (row, column) = coordinates_for(well)
-            part = collection.part(row, column)
+            item = self.item_map[collection.item_id]
+            part = item.part(row, column)
             if part:
                 part_id = part.id
             else:
