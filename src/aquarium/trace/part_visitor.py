@@ -86,7 +86,7 @@ class AddPartsVisitor(ProvenanceVisitor):
                               part_association.part_id,
                               part_association.collection_id)
                 return None
-            logging.debug("part_association part %s coll %s row %s col %",
+            logging.debug("part_association part %s coll %s row %s col %s",
                           part_association.part_id,
                           part_association.collection_id,
                           part_association.row,
