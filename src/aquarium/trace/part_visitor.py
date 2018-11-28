@@ -86,7 +86,7 @@ class AddPartsVisitor(ProvenanceVisitor):
                               part_association.part_id,
                               part_association.collection_id)
                 return None
-
+            logging.debug("part_association %s", json.dumps(part_association))
             collection = self.trace.get_item(part_association.collection_id)
             part_entity = self.factory.get_part(
                 collection=collection,
