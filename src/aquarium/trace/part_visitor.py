@@ -9,7 +9,6 @@ from collections.abc import Mapping
 
 class AddPartsVisitor(ProvenanceVisitor):
     def __init__(self, trace=None):
-        self.part_map = dict()  # part ref string -> part_entity
         super().__init__(trace)
 
     def visit_collection(self, collection: CollectionEntity):
@@ -38,17 +37,14 @@ class AddPartsVisitor(ProvenanceVisitor):
         for src_obj in source_list:
             source_entity = None
             source_id = str(src_obj['id'])
+            source_entity = self.factory.get_item(item_id=source_id)
+
             if 'row' in src_obj:  # is a part
-                row = src_obj['row']
-                col = src_obj['column']
-                ref = AddPartsVisitor.get_part_ref(
-                    collection_id=source_id,
-                    well=well_coordinates(row, col))
-                if ref in self.part_map:
-                    # TODO: add source coll/parts that don't already exist
-                    source_entity = self.part_map[ref]
-            else:
-                source_entity = self.factory.get_item(item_id=source_id)
+                source_entity = self.factory.get_part(
+                    collection=source_entity,
+                    row=src_obj['row'],
+                    column=src_obj['column'])
+
             if not source_entity:
                 logging.debug("Source %s for part %s not found",
                               json.dumps(src_obj), part_entity.item_id)
@@ -79,10 +75,6 @@ class AddPartsVisitor(ProvenanceVisitor):
         target.sample = source.sample
         return True
 
-    @staticmethod
-    def get_part_ref(*, collection_id, well):
-        return "{}/{}".format(collection_id, well)
-
     def _collect_parts(self, item):
         for part_association in item.part_associations:
             logging.debug("Getting part %s", part_association.part_id)
@@ -96,21 +88,14 @@ class AddPartsVisitor(ProvenanceVisitor):
                 return None
 
             collection = self.trace.get_item(part_association.collection_id)
-            ref = AddPartsVisitor.get_part_ref(
-                collection_id=collection.item_id,
-                well=well_coordinates(
-                    part_association.row,
-                    part_association.column)
-            )
-            part = part_association.part
-            part_entity = PartEntity(part_id=part_association.part_id,
-                                     part_ref=ref,
-                                     sample=part.sample,
-                                     object_type=part.object_type,
-                                     collection=collection)
-            self.part_map[part_entity.ref] = part_entity
-            self.trace.add_item(part_entity)
-            self.factory.item_map[part_entity.item_id] = part
+            part_entity = self.factory.get_part(
+                collection=collection,
+                row=part_association.row,
+                column=part_association.column,
+                part_id=part_association.part_id,
+                sample=part_association.part.sample,
+                object_type=part_association.part.object_type)
+            self.factory.item_map[part_entity.item_id] = part_association.part
 
     def _create_parts(self, collection, upload_matrix, routing_matrix):
         self._create_parts_from_samples(collection)
@@ -122,7 +107,6 @@ class AddPartsVisitor(ProvenanceVisitor):
     def _create_parts_from_samples(self, coll_entity):
         collection = self.factory.item_map[coll_entity.item_id]
         generator = coll_entity.generator
-        item_id = coll_entity.item_id
         for i in range(len(collection.matrix)):
             row = collection.matrix[i]
             for j in range(len(row)):
@@ -130,11 +114,11 @@ class AddPartsVisitor(ProvenanceVisitor):
                 if not sample:
                     continue
 
-                part_ref = AddPartsVisitor.get_part_ref(
-                    collection_id=item_id,
-                    well=well_coordinates(i, j))
-                part_entity = self._get_part(part_ref=part_ref,
-                                             collection=coll_entity)
+                part_entity = self.factory.get_part(
+                    collection=coll_entity,
+                    row=i,
+                    column=j)
+
                 if generator and not part_entity.generator:
                     part_entity.add_generator(generator)
 
@@ -151,20 +135,17 @@ class AddPartsVisitor(ProvenanceVisitor):
                 if not routing_entry or not isinstance(routing_entry, Mapping):
                     continue
 
-                part_ref = AddPartsVisitor.get_part_ref(
-                    collection_id=entity.item_id,
-                    well=well_coordinates(i, j))
+                part_entity = self.factory.get_part(collection=entity,
+                                                    row=i,
+                                                    column=j)
 
                 source_id = AddPartsVisitor._get_source_id(routing_entry)
-
                 if not source_id:
                     logging.debug("No source information for %s from %s",
                                   entity.item_id,
-                                  part_ref)
+                                  part_entity.ref)
                     continue
 
-                part_entity = self._get_part(part_ref=part_ref,
-                                             collection=entity)
                 if entity.generator and not part_entity.generator:
                     part_entity.add_generator(entity.generator)
 
@@ -210,11 +191,9 @@ class AddPartsVisitor(ProvenanceVisitor):
                 if not upload_id or upload_id <= 0:
                     continue
 
-                part_ref = AddPartsVisitor.get_part_ref(
-                    collection_id=entity.item_id,
-                    well=well_coordinates(i, j))
-                part_entity = self._get_part(part_ref=part_ref,
-                                             collection=entity)
+                part_entity = self.factory.get_part(
+                    collection=entity, row=i, column=j)
+
                 if entity.generator and not part_entity.generator:
                     part_entity.add_generator(entity.generator)
 
@@ -251,78 +230,50 @@ class AddPartsVisitor(ProvenanceVisitor):
             return self.trace.get_item(source_id)
 
         source_components = source_id.split('/')
-        if re.match("[0-9]+", source_id):
+        if len(source_components) not in [2, 4]:
+            logging.error(
+                "Expecting source with either 2 or 4 components, got %s",
+                source_id)
+            return None
+
+        if not re.match("[0-9]+", source_components[0]):
+            logging.error(
+                "Expecting source beginning with item ID, got %s",
+                source_components[0])
+            return None
+
+        if len(source_components) == 2:
             source_item_id = source_components[0]
-            well = None
-            if len(source_components) == 2:
-                well = source_components[1]
-                # fix stray numeric coordinates
-                pattern = r"\[\[([0-9]+),[ \t]*([0-9]+)\]\]"
-                match = re.match(pattern, well)
-                if match:
-                    well = well_coordinates(
-                        int(match[1]), int(match[2]))
-                    part_ref = AddPartsVisitor.get_part_ref(
-                        collection_id=source_item_id,
-                        well=well)
-                    if part_ref in self.part_map:
-                        return self.part_map[part_ref]
-                # TODO: handle bad part ref
+            well = source_components[1]
+
+            pattern = r"\[\[([0-9]+),[ \t]*([0-9]+)\]\]"
+            match = re.match(pattern, source_components[1])
+            if match:
+                well = well_coordinates(int(match[1]), int(match[2]))
+
         elif len(source_components) == 4:
-            # TODO: check this is an identifier
             source_item_id = source_components[1]
             well = source_components[3]
-        else:
-            # TODO: raise exception here since id is malformed
-            msg = "unrecognized source ID: %s"
-            logging.warning(msg, source_id)
-            return None
 
         source_item_entity = self.factory.get_item(item_id=source_item_id)
 
-        if not well:
-            logging.debug("No well, returning %s %s as source",
-                          source_item_entity.item_type,
-                          source_item_entity.item_id)
-            return source_item_entity
-
         if not source_item_entity.is_collection():
-            msg = "ignoring part %s from non-collection %s in source"
+            msg = "Ignoring source part %s from non-collection %s"
             logging.info(msg, well, source_item_id)
             return source_item_entity
 
-        part_ref = AddPartsVisitor.get_part_ref(collection_id=source_item_id,
-                                                well=well)
-        logging.debug("Part reference %s", part_ref)
+        source_part_entity = self.factory.get_part(
+            collection=source_item_entity,
+            well=well
+        )
 
-        # this assumes part_ref is well-formed
-        source_part_entity = self._get_part(part_ref=part_ref,
-                                            collection=source_item_entity)
         if not source_part_entity.sample:
-            source_collection = self.factory.item_map[source_item_id]
             (i, j) = AddPartsVisitor._split_well_coordinate(well)
-            sample_id = source_collection.matrix[i][j]
+            sample_id = source_item_entity.matrix[i][j]
             sample = self.factory.get_sample(sample_id)
             source_part_entity.sample = sample
 
         return source_part_entity
-
-    def _get_part(self, *, part_ref, collection=None):
-        logging.debug("Getting part %s", part_ref)
-        if part_ref in self.part_map:
-            return self.part_map[part_ref]
-        if self.trace.has_item(part_ref):
-            return self.trace.get_item(part_ref)
-
-        if not collection:
-            logging.error("No collection given for new part %s", part_ref)
-            # TODO: throw exception instead
-            return None
-
-        part_entity = PartEntity(part_id=part_ref, part_ref=part_ref,
-                                 collection=collection)
-        self.trace.add_item(part_entity)
-        return part_entity
 
     @staticmethod
     def _split_well_coordinate(well):

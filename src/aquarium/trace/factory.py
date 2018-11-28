@@ -11,10 +11,12 @@ from aquarium.provenance import (
     OperationActivity,
     OperationInput,
     OperationParameter,
+    PartEntity,
     PlanTrace)
 from aquarium.trace.visitor import BatchVisitor, ProvenanceVisitor
 from aquarium.trace.part_visitor import AddPartsVisitor
 from aquarium.trace.patch import create_patch_visitor
+from util.plate import well_coordinates
 
 
 class TraceFactory:
@@ -31,6 +33,7 @@ class TraceFactory:
         self.job_map = dict()         # job_id -> job
         self.uploads = dict()         # upload_id -> file_entity
         self.external_files = dict()  # name -> external_file_entity
+        self.part_map = dict()        # part ref string -> part_entity
 
     @staticmethod
     def create_from(*, session, plan, visitor=None):
@@ -145,14 +148,19 @@ class TraceFactory:
         """
         item_id = field_value.child_item_id
         if item_id:
-            if field_value.row and field_value.column:
-                logging.debug("Item %s appears to be a part at [%s,%s]",
-                              item_id, field_value.row, field_value.column)
             item_entity = self.get_item(item_id=item_id)
+            if field_value.row and field_value.column:
+                logging.debug("Input is a part %s[%s,%s]",
+                              item_id, field_value.row, field_value.column)
+                item_entity = self.get_part(collection=item_entity,
+                                            row=field_value.row,
+                                            column=field_value.column)
+
             routing_id = self._get_routing_id(field_value, operation_id)
             if routing_id:
                 logging.debug("Creating arg object for %s %s with routing %s",
                               field_value.name, item_id, routing_id)
+
             return OperationInput(
                 name=field_value.name,
                 field_value_id=field_value.id,
@@ -254,6 +262,38 @@ class TraceFactory:
         self.trace.add_item(item_entity)
         return item_entity
 
+    def get_part(self, *, collection, row=None, column=None, well=None,
+                 part_id=None, sample=None, object_type=None):
+        if not collection:
+            logging.error("No collection given for new part")
+            return None
+
+        if not collection.is_collection():
+            logging.error("Refusing to create part for non-collection %s",
+                          collection.item_id)
+            return None
+
+        if not (row and column) and not well:
+            logging.error("No well coordinates given")
+            return None
+
+        if not well:
+            well = well_coordinates(row, column)
+
+        part_ref = get_part_ref(collection_id=collection.item_id, well=well)
+
+        logging.debug("Getting part %s", part_ref)
+        if part_ref in self.part_map:
+            return self.part_map[part_ref]
+        if self.trace.has_item(part_ref):
+            return self.trace.get_item(part_ref)
+
+        part_entity = PartEntity(part_id=part_ref, part_ref=part_ref,
+                                 collection=collection)
+        self.part_map[part_entity.ref] = part_entity
+        self.trace.add_item(part_entity)
+        return part_entity
+
     def get_operation(self, operation) -> OperationActivity:
         """
         Returns the operation activity for the operation.
@@ -313,6 +353,10 @@ class TraceFactory:
         """
         if sample_id and not sample_id < 0:
             return self.session.Sample.find(sample_id)
+
+
+def get_part_ref(*, collection_id, well):
+    return "{}/{}".format(collection_id, well)
 
 
 def is_input(field_value):
@@ -387,8 +431,6 @@ class PlanFileVisitor:
         if upload_id not in upload_list:
             upload_list.append(upload_id)
             self.trace.add_attribute({'bead_files': upload_list})
-
-# refactor
 
 
 class AttributeVisitor(ProvenanceVisitor):
