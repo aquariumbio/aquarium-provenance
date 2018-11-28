@@ -273,8 +273,8 @@ class TraceFactory:
                           collection.item_id)
             return None
 
-        if not well:
-            if not (row and column):
+        if well is None:
+            if row is None or column is None:
                 logging.error("No well coordinates given")
                 return None
             well = well_coordinates(row, column)
