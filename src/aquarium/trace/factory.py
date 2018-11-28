@@ -287,8 +287,16 @@ class TraceFactory:
         if self.trace.has_item(part_ref):
             return self.trace.get_item(part_ref)
 
-        part_entity = PartEntity(part_id=part_ref, part_ref=part_ref,
+        if part_id is None:
+            part_id = part_ref
+
+        part_entity = PartEntity(part_id=part_id, part_ref=part_ref,
                                  collection=collection)
+
+        if sample is not None:
+            part_entity.sample = sample
+        if object_type is not None:
+            part_entity.object_type = object_type
 
         self.part_map[part_entity.ref] = part_entity
         self.trace.add_item(part_entity)
