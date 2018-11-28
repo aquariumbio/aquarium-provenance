@@ -86,16 +86,21 @@ class AddPartsVisitor(ProvenanceVisitor):
                               part_association.part_id,
                               part_association.collection_id)
                 return None
-            logging.debug("part_association %s", json.dumps(part_association))
+            logging.debug("part_association part %s coll %s row %s col %",
+                          part_association.part_id,
+                          part_association.collection_id,
+                          part_association.row,
+                          part_association.column)
             collection = self.trace.get_item(part_association.collection_id)
+            part = part_association.part
             part_entity = self.factory.get_part(
                 collection=collection,
                 row=part_association.row,
                 column=part_association.column,
                 part_id=part_association.part_id,
-                sample=part_association.part.sample,
-                object_type=part_association.part.object_type)
-            self.factory.item_map[part_entity.item_id] = part_association.part
+                sample=part.sample,
+                object_type=part.object_type)
+            self.factory.item_map[part_entity.item_id] = part
 
     def _create_parts(self, collection, upload_matrix, routing_matrix):
         self._create_parts_from_samples(collection)

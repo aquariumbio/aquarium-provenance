@@ -289,6 +289,7 @@ class TraceFactory:
 
         part_entity = PartEntity(part_id=part_ref, part_ref=part_ref,
                                  collection=collection)
+
         self.part_map[part_entity.ref] = part_entity
         self.trace.add_item(part_entity)
         return part_entity
