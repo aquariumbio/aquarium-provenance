@@ -149,7 +149,7 @@ class TraceFactory:
         item_id = field_value.child_item_id
         if item_id:
             item_entity = self.get_item(item_id=item_id)
-            if field_value.row and field_value.column:
+            if field_value.row is not None and field_value.column is not None:
                 logging.debug("Input is a part %s[%s,%s]",
                               item_id, field_value.row, field_value.column)
                 item_entity = self.get_part(collection=item_entity,
