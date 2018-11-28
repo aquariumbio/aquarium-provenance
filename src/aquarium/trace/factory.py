@@ -293,8 +293,12 @@ class TraceFactory:
             item = self.item_map[collection.item_id]
             part = item.part(row, column)
             if part:
+                logging.debug("Found part %s for ref %s", part.id, part_ref)
                 part_id = part.id
+                sample = part.sample
+                object_type = part.object_type
             else:
+                logging.warning("Did not find part for ref %s", part_ref)
                 part_id = part_ref
 
         part_entity = PartEntity(part_id=part_id, part_ref=part_ref,

@@ -120,15 +120,11 @@ class AddPartsVisitor(ProvenanceVisitor):
                 part_entity = self.factory.get_part(
                     collection=coll_entity,
                     row=i,
-                    column=j)
+                    column=j,
+                    sample=sample)
 
                 if generator and not part_entity.generator:
                     part_entity.add_generator(generator)
-
-                if not part_entity.sample:
-                    msg = "Adding sample %s to part %s"
-                    logging.debug(msg, sample.id, part_entity.item_id)
-                    part_entity.sample = sample
 
     def _create_parts_from_routing(self, entity, routing_matrix):
         for i in range(len(routing_matrix)):
@@ -269,12 +265,6 @@ class AddPartsVisitor(ProvenanceVisitor):
             collection=source_item_entity,
             well=well
         )
-
-        if not source_part_entity.sample:
-            (i, j) = AddPartsVisitor._split_well_coordinate(well)
-            sample_id = source_item_entity.matrix[i][j]
-            sample = self.factory.get_sample(sample_id)
-            source_part_entity.sample = sample
 
         return source_part_entity
 
