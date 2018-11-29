@@ -227,18 +227,22 @@ class TraceFactory:
 
         file_entity = None
         upload = self.session.Upload.find(upload_id)
-        if upload:
-            file_job = self._get_job(upload.job.id)
-            if not file_job:
-                logging.debug("Job %s of file upload %s is not in plan",
-                              upload.job.id, upload_id)
-                return None
-            file_entity = FileEntity(upload=upload,
-                                     job=file_job)
-            self.trace.add_file(file_entity)
-            self.uploads[upload_id] = file_entity
-        else:
+        if not upload:
             logging.error("No upload object for ID %s", upload_id)
+            return None
+        if not upload.job:
+            logging.error("No job in upload %s", upload_id)
+            return None
+
+        file_job = self._get_job(upload.job.id)
+        if not file_job:
+            logging.debug("Job %s of file upload %s is not in plan",
+                          upload.job.id, upload_id)
+            return None
+
+        file_entity = FileEntity(upload=upload, job=file_job)
+        self.trace.add_file(file_entity)
+        self.uploads[upload_id] = file_entity
 
         return file_entity
 
