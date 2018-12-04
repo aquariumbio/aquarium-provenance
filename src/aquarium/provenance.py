@@ -157,10 +157,10 @@ class ItemEntity(AbstractItemEntity):
     Defines an entity class for an Aquarium Item object.
     """
 
-    def __init__(self, *, item):
-        self.sample = item.sample
-        self.object_type = item.object_type
-        super().__init__(item_id=item.id, item_type='item')
+    def __init__(self, *, item_id, sample, object_type):
+        self.sample = sample
+        self.object_type = object_type
+        super().__init__(item_id=item_id, item_type='item')
 
     def apply(self, visitor):
         visitor.visit_item(self)
@@ -454,7 +454,7 @@ class JobActivity:
 
 class OperationActivity(AttributesMixin):
 
-    def __init__(self, *, id, operation_type, operation,
+    def __init__(self, *, id, operation_type,
                  start_time=None, end_time=None):
         self.type = 'operation'
         self.operation_id = str(id)
@@ -628,6 +628,9 @@ class PlanTrace(AttributesMixin):
         if item.is_part():
             return False
 
+        if not self.has_item(item.item_id):
+            return False
+
         if item.generator:
             if item.generator.is_job():
                 if self.has_job(item.generator.job_id):
@@ -635,11 +638,11 @@ class PlanTrace(AttributesMixin):
             else:
                 if self.has_operation(item.generator.operation_id):
                     return False
-        else:
-            if item.sources:
-                for source in item.sources:
-                    if self.has_item(source.item_id):
-                        return False
+
+        if item.sources:
+            for source in item.sources:
+                if self.has_item(source.item_id):
+                    return False
 
         return True
 
