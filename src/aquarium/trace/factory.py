@@ -260,7 +260,10 @@ class TraceFactory:
             item_obj = self.session.Collection.find(item_id)
             item_entity = CollectionEntity(collection=item_obj)
         else:
-            item_entity = ItemEntity(item=item_obj)
+            item_entity = ItemEntity(
+                item_id=item_obj.id,
+                sample=item_obj.sample,
+                object_type=item_obj.object_type)
 
         self.item_map[str(item_id)] = item_obj
         self.trace.add_item(item_entity)
@@ -328,8 +331,7 @@ class TraceFactory:
 
         op_activity = OperationActivity(
             id=str(operation.id),
-            operation_type=operation.operation_type,
-            operation=operation)
+            operation_type=operation.operation_type)
 
         self.trace.add_operation(op_activity)
         return op_activity
