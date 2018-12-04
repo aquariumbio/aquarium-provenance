@@ -1,6 +1,7 @@
 .vscode
 
 **/__pycache__
+**/.pytest_cache
 src/resources.py
 src/**/*.log
 

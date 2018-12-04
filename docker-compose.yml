@@ -7,7 +7,7 @@ services:
     command: ["pytest"]
     volumes:
       - ./src:/app/
-      - ./test:app/test
+      - ./test:/app/test
   
   trace:
     build:
