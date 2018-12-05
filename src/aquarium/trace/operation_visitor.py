@@ -753,17 +753,16 @@ class SynchByODVisitor(MeasurementVisitor):
             ref = part.well
             # TODO: deal with controls from other sources
 
-        source_id = "{}/{}".format(collection_source.item_id, ref)
-        source = self.trace.get_item(source_id)
+        source = self.factory.get_part(collection=collection_source, well=ref)
         if not source:
-            logging.warning("Computed source %s for part %s does not exist",
-                            source_id, part.item_id)
+            logging.warning("Computed source %s/%s for part %s does not exist",
+                            collection_source.item_id, ref, part.item_id)
             return
 
         if source.sample.id != part.sample.id:
-            msg = "Sample mismatch for source %s (%s) and part %s (%s)"
-            logging.error(msg, source_id, source.sample.id,
-                          part.item_id, part.sample.id)
+            msg = "Sample mismatch for source %s/%s (%s) and part %s (%s)"
+            logging.error(msg, collection_source.item_id, ref,
+                          source.sample.id, part.item_id, part.sample.id)
             return
 
         part.add_source(source)
@@ -1088,11 +1087,11 @@ class NCLargeVolumeInductionVisitor(OperationProvenanceVisitor):
 
         i, j = coordinates_for(part.well)
         source_collection = next(iter(part.collection.sources))
-        source_id = "{}/{}".format(source_collection.item_id,
-                                   transfer_coords[i][j])
-        source = self.trace.get_item(source_id)
+        well = transfer_coords[i][j]
+        source = self.factory.get_part(collection=source_collection, well=well)
         if not source:
-            logging.debug("No source found with reference %s", source_id)
+            logging.debug("No source found with reference %s/%s",
+                          source_collection.item_id, well)
             return
 
         part.add_source(source)
@@ -1161,14 +1160,13 @@ class NCSamplingVisitor(OperationProvenanceVisitor):
             if transfer_coords[0][0] == anchor:
                 source_collection = input.item
 
-        source_id = "{}/{}".format(source_collection.item_id,
-                                   well_coordinates(i // 2, j % 6))
-        if not self.trace.has_item(source_id):
-            logging.debug("Source %s for part %s does not exist",
-                          source_id, part.item_id)
+        well = well_coordinates(i // 2, j % 6)
+        source = self.factory.get_part(collection=source_collection, well=well)
+        if not source:
+            logging.debug("Source %s/%s for part %s does not exist",
+                          source_collection.item_id, well, part.item_id)
             return
 
-        source = self.trace.get_item(source_id)
         part.add_source(source)
         log_source_add(source, part)
 
