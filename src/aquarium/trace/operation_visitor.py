@@ -1067,7 +1067,6 @@ class NCLargeVolumeInductionVisitor(OperationProvenanceVisitor):
         if self.is_match(part.collection.generator):
             logging.debug("NCLargeVolumeInduction visit part %s operation %s",
                           part.item_id, self.name)
-            logging.debug("part type is %s", type(part))
             self.fix_part_source(part)
             self.add_part_attributes(part)
 
@@ -1081,11 +1080,20 @@ class NCLargeVolumeInductionVisitor(OperationProvenanceVisitor):
 
         transfer_coords = part.collection.get_attribute(
             'deep_well_transfer_coords')
+        if not transfer_coords:
+            logging.debug("Part %s has no deep_well_transfer_coords attribute",
+                          part.item_id)
+            return
+
         i, j = coordinates_for(part.well)
         source_collection = next(iter(part.collection.sources))
         source_id = "{}/{}".format(source_collection.item_id,
                                    transfer_coords[i][j])
         source = self.trace.get_item(source_id)
+        if not source:
+            logging.debug("No source found with reference %s", source_id)
+            return
+        
         part.add_source(source)
         log_source_add(source, part)
 
