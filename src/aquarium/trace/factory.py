@@ -271,6 +271,10 @@ class TraceFactory:
 
     def get_part(self, *, collection, row=None, column=None, well=None,
                  part_id=None, sample=None, object_type=None):
+        if part_id is not None:
+            if self.trace.has_item(part_id):
+                return self.trace.get_item(part_id)
+
         if not collection:
             logging.error("No collection given for new part")
             return None
@@ -299,14 +303,14 @@ class TraceFactory:
                 (row, column) = coordinates_for(well)
             item = self.item_map[collection.item_id]
             part = item.part(row, column)
-            if part:
-                logging.debug("Found part %s for ref %s", part.id, part_ref)
-                part_id = part.id
-                sample = part.sample
-                object_type = part.object_type
-            else:
+            if not part:
                 logging.warning("Did not find part for ref %s", part_ref)
-                part_id = part_ref
+                return None
+
+            logging.debug("Found part %s for ref %s", part.id, part_ref)
+            part_id = part.id
+            sample = part.sample
+            object_type = part.object_type
 
         part_entity = PartEntity(part_id=part_id, part_ref=part_ref,
                                  collection=collection)
