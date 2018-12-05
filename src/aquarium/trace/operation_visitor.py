@@ -1067,6 +1067,7 @@ class NCLargeVolumeInductionVisitor(OperationProvenanceVisitor):
         if self.is_match(part.collection.generator):
             logging.debug("NCLargeVolumeInduction visit part %s operation %s",
                           part.item_id, self.name)
+            logging.debug("part type is %s", type(part))
             self.fix_part_source(part)
             self.add_part_attributes(part)
 
