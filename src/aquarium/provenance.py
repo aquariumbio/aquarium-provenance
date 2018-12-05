@@ -5,7 +5,8 @@ See TraceFactory.create_from to load.
 Based on PROV-DM (https://www.w3.org/TR/prov-dm/), which defines provenance
 in terms of activities, agents, and entities.
 
-Note that I punted on properly modeling the kinds of entities in Aquarium.
+No attempt was made to properly model sample and object_type for the kinds of
+entities in Aquarium.
 An Item has a sample and object_type;
 a collection has no sample but has an object_type; and
 a part of a collection has a sample but no object_type.
@@ -29,10 +30,17 @@ class AttributesMixin(abc.ABC):
 
     @abc.abstractmethod
     def __init__(self):
+        """
+        Initialize empty attribute dictionary for this object.
+        """
         self.attributes = dict()
         super().__init__()
 
     def add_attribute(self, attribute):
+        """
+        Adds all key-value pairs in the given dictionary to the attributes
+        dictionary of this class.
+        """
         for key, value in attribute.items():
             if value:
                 self.attributes[key] = value
