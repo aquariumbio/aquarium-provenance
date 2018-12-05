@@ -122,6 +122,10 @@ class AddPartsVisitor(ProvenanceVisitor):
                     row=i,
                     column=j,
                     sample=sample)
+                if not part_entity:
+                    logging.debug("Failed to get part for %s/%s",
+                                  coll_entity.item_id, well_coordinates(i, j))
+                    continue
 
                 if generator and not part_entity.generator:
                     part_entity.add_generator(generator)
@@ -137,6 +141,10 @@ class AddPartsVisitor(ProvenanceVisitor):
                 part_entity = self.factory.get_part(collection=entity,
                                                     row=i,
                                                     column=j)
+                if not part_entity:
+                    logging.debug("Could not get part for reference %s/%s",
+                                  entity.item_id, well_coordinates(i, j))
+                    continue
 
                 source_id = AddPartsVisitor._get_source_id(routing_entry)
                 if not source_id:
@@ -192,6 +200,11 @@ class AddPartsVisitor(ProvenanceVisitor):
 
                 part_entity = self.factory.get_part(
                     collection=entity, row=i, column=j)
+
+                if not part_entity:
+                    logging.debug("No part for reference %s/%s",
+                                  entity.item_id, well_coordinates(i, j))
+                    continue
 
                 if entity.generator and not part_entity.generator:
                     part_entity.add_generator(entity.generator)
