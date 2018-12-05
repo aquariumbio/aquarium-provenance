@@ -1081,8 +1081,9 @@ class NCLargeVolumeInductionVisitor(OperationProvenanceVisitor):
         transfer_coords = part.collection.get_attribute(
             'deep_well_transfer_coords')
         if not transfer_coords:
-            logging.debug("Part %s has no deep_well_transfer_coords attribute",
-                          part.item_id)
+            logging.debug(
+                "Collection %s has no deep_well_transfer_coords attribute",
+                part.collection.item_id)
             return
 
         i, j = coordinates_for(part.well)
@@ -1093,7 +1094,7 @@ class NCLargeVolumeInductionVisitor(OperationProvenanceVisitor):
         if not source:
             logging.debug("No source found with reference %s", source_id)
             return
-        
+
         part.add_source(source)
         log_source_add(source, part)
 
@@ -1151,6 +1152,12 @@ class NCSamplingVisitor(OperationProvenanceVisitor):
         for input in part.generator.inputs:
             transfer_coords = input.item.get_attribute(
                 'deep_well_transfer_coords')
+            if not transfer_coords:
+                logging.debug(
+                    "There is no deep_well_transfer_coords attribute for %s %s",
+                    input.item.item_type, input.item.item_id)
+                continue
+
             if transfer_coords[0][0] == anchor:
                 source_collection = input.item
 
