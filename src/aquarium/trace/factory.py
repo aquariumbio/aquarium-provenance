@@ -260,6 +260,7 @@ class TraceFactory:
         if is_collection(item_obj):
             item_obj = self.session.Collection.find(item_id)
             item_entity = CollectionEntity(collection=item_obj)
+            self._collect_parts(item_obj)
         else:
             item_entity = ItemEntity(
                 item_id=item_obj.id,
@@ -296,8 +297,10 @@ class TraceFactory:
 
         logging.debug("Getting part %s", part_ref)
         if part_ref in self.part_map:
+            logging.debug("Ref %s in factory part_map", part_ref)
             return self.part_map[part_ref]
         if self.trace.has_item(part_ref):
+            logging.debug("Ref %s in plan", part_ref)
             return self.trace.get_item(part_ref)
 
         if part_id is None:
@@ -343,6 +346,33 @@ class TraceFactory:
         self.trace.add_operation(op_activity)
         op_activity.apply(self.attribute_visitor)
         return op_activity
+
+    def _collect_parts(self, item):
+        for part_association in item.part_associations:
+            logging.debug("Getting part %s", part_association.part_id)
+            if self.trace.has_item(part_association.part_id):
+                return self.trace.get_item(part_association.part_id)
+
+            if not self.trace.has_item(part_association.collection_id):
+                logging.error("Collection %s for part %s not in trace",
+                              part_association.part_id,
+                              part_association.collection_id)
+                return None
+            logging.debug("part_association part %s coll %s row %s col %s",
+                          part_association.part_id,
+                          part_association.collection_id,
+                          part_association.row,
+                          part_association.column)
+            collection = self.trace.get_item(part_association.collection_id)
+            part = part_association.part
+            part_entity = self.get_part(
+                collection=collection,
+                row=part_association.row,
+                column=part_association.column,
+                part_id=part_association.part_id,
+                sample=part.sample,
+                object_type=part.object_type)
+            self.item_map[part_entity.item_id] = part
 
     def _get_job(self, job_id):
         """

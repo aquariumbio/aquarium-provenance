@@ -16,9 +16,6 @@ class AddPartsVisitor(ProvenanceVisitor):
         Adds the parts for a collection.
         """
         logging.debug("Adding parts for collection %s", collection.item_id)
-        item = self.factory.item_map[collection.item_id]
-        self._collect_parts(item)
-
         upload_matrix = AddPartsVisitor.get_upload_matrix(collection)
         routing_matrix = AddPartsVisitor.get_routing_matrix(collection)
         self._create_parts(collection, upload_matrix, routing_matrix)
@@ -72,33 +69,6 @@ class AddPartsVisitor(ProvenanceVisitor):
                       source.sample.id, target.item_id)
         target.sample = source.sample
         return True
-
-    def _collect_parts(self, item):
-        for part_association in item.part_associations:
-            logging.debug("Getting part %s", part_association.part_id)
-            if self.trace.has_item(part_association.part_id):
-                return self.trace.get_item(part_association.part_id)
-
-            if not self.trace.has_item(part_association.collection_id):
-                logging.error("Collection %s for part %s not in trace",
-                              part_association.part_id,
-                              part_association.collection_id)
-                return None
-            logging.debug("part_association part %s coll %s row %s col %s",
-                          part_association.part_id,
-                          part_association.collection_id,
-                          part_association.row,
-                          part_association.column)
-            collection = self.trace.get_item(part_association.collection_id)
-            part = part_association.part
-            part_entity = self.factory.get_part(
-                collection=collection,
-                row=part_association.row,
-                column=part_association.column,
-                part_id=part_association.part_id,
-                sample=part.sample,
-                object_type=part.object_type)
-            self.factory.item_map[part_entity.item_id] = part
 
     def _create_parts(self, collection, upload_matrix, routing_matrix):
         self._create_parts_from_samples(collection)
