@@ -28,6 +28,7 @@ class TraceFactory:
         self.trace = trace
         self.session = session
         self.plan = plan
+        self.attribute_visitor = AttributeVisitor(trace=plan, factory=self)
         self.item_map = dict()        # item_id -> item
         self.op_map = dict()          # operation_id -> operation
         self.job_map = dict()         # job_id -> job
@@ -54,6 +55,7 @@ class TraceFactory:
             plan=plan,
             trace=trace
         )
+        trace.apply(factory.attribute_visitor)
 
         for operation in plan.operations:
             factory._add_operation(operation)
@@ -61,7 +63,6 @@ class TraceFactory:
         # Apply the primary visitor first, the given visitor, and then patch
         primary_visitor = BatchVisitor()
         primary_visitor.add_visitor(JobVisitor())
-        primary_visitor.add_visitor(AttributeVisitor())
         primary_visitor.add_visitor(AddPartsVisitor())
         primary_visitor.add_visitor(FileProvenanceVisitor())
         factory._apply(primary_visitor)
@@ -267,6 +268,7 @@ class TraceFactory:
 
         self.item_map[str(item_id)] = item_obj
         self.trace.add_item(item_entity)
+        item_entity.apply(self.attribute_visitor)
         return item_entity
 
     def get_part(self, *, collection, row=None, column=None, well=None,
@@ -322,6 +324,7 @@ class TraceFactory:
 
         self.part_map[part_entity.ref] = part_entity
         self.trace.add_item(part_entity)
+        part_entity.apply(self.attribute_visitor)
         return part_entity
 
     def get_operation(self, operation) -> OperationActivity:
@@ -338,6 +341,7 @@ class TraceFactory:
             operation_type=operation.operation_type)
 
         self.trace.add_operation(op_activity)
+        op_activity.apply(self.attribute_visitor)
         return op_activity
 
     def _get_job(self, job_id):
@@ -468,8 +472,8 @@ class AttributeVisitor(ProvenanceVisitor):
     operations and plans.
     """
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, trace=None, factory=None):
+        super().__init__(trace=trace, factory=factory)
 
     def visit_collection(self, collection: CollectionEntity):
         logging.debug("Getting attributes for %s %s",
