@@ -123,7 +123,7 @@ class AddPartsVisitor(ProvenanceVisitor):
                     column=j,
                     sample=sample)
                 if not part_entity:
-                    logging.debug("Failed to get part for %s/%s",
+                    logging.debug("No part for reference %s/%s",
                                   coll_entity.item_id, well_coordinates(i, j))
                     continue
 
@@ -142,7 +142,7 @@ class AddPartsVisitor(ProvenanceVisitor):
                                                     row=i,
                                                     column=j)
                 if not part_entity:
-                    logging.debug("Could not get part for reference %s/%s",
+                    logging.debug("No part for reference %s/%s",
                                   entity.item_id, well_coordinates(i, j))
                     continue
 
