@@ -367,6 +367,10 @@ class TraceFactory:
                           part_association.row,
                           part_association.column)
             collection = self.trace.get_item(part_association.collection_id)
+            if not collection:
+                logging.error("Collection %s for part association not found",
+                              part_association.collection_id)
+                return None
             part = part_association.part
             part_entity = self.get_part(
                 collection=collection,
