@@ -260,7 +260,7 @@ class TraceFactory:
         if is_collection(item_obj):
             item_obj = self.session.Collection.find(item_id)
             item_entity = CollectionEntity(collection=item_obj)
-            self._collect_parts(item_obj)
+
         else:
             item_entity = ItemEntity(
                 item_id=item_obj.id,
@@ -270,6 +270,9 @@ class TraceFactory:
         self.item_map[str(item_id)] = item_obj
         self.trace.add_item(item_entity)
         item_entity.apply(self.attribute_visitor)
+        if is_collection(item_obj):
+            self._collect_parts(item_obj)
+
         return item_entity
 
     def get_part(self, *, collection, row=None, column=None, well=None,
