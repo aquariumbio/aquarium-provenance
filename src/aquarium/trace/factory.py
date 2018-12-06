@@ -270,7 +270,7 @@ class TraceFactory:
         self.item_map[str(item_id)] = item_obj
         self.trace.add_item(item_entity)
         item_entity.apply(self.attribute_visitor)
-        if is_collection(item_obj):
+        if item_entity.is_collection():
             self._collect_parts(item_obj)
 
         return item_entity
