@@ -348,17 +348,17 @@ class TraceFactory:
         return op_activity
 
     def _collect_parts(self, item):
+        logging.debug("Collecting parts for %s", item.id)
         for part_association in item.part_associations:
             logging.debug("Getting part %s", part_association.part_id)
             if self.trace.has_item(part_association.part_id):
                 return self.trace.get_item(part_association.part_id)
 
-            if not self.trace.has_item(part_association.collection_id):
-                logging.error("Collection %s for part %s not in trace",
-                              part_association.part_id,
-                              part_association.collection_id)
+            if part_association.collection_id != item.id:
+                logging.error("Collection %s does not match association %s",
+                              item.id, part_association.collection_id)
                 return None
-            logging.debug("part_association part %s coll %s row %s col %s",
+            logging.debug("part_association: part=%s, coll=%s row=%s, col=%s",
                           part_association.part_id,
                           part_association.collection_id,
                           part_association.row,
