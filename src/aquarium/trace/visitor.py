@@ -13,9 +13,9 @@ from aquarium.provenance import (
 
 class ProvenanceVisitor(abc.ABC):
     @abc.abstractmethod
-    def __init__(self, trace=None):
+    def __init__(self, trace=None, factory=None):
         self.trace = trace
-        self.factory = None
+        self.factory = factory
 
     def add_factory(self, factory):
         self.factory = factory
