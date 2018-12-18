@@ -198,6 +198,7 @@ class TraceFactory:
                     routing_map.add(arg)
                     self.trace.add_input(arg.item_id, op_activity)
                 elif is_output(field_value):
+                    op_activity.add_output(arg)
                     if arg.routing_id:
                         if arg.routing_id in routing_map:
                             for input_item in routing_map.get(arg.routing_id):

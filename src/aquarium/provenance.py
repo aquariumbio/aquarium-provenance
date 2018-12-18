@@ -470,23 +470,34 @@ class OperationActivity(AttributesMixin):
         self.job = None
         self.start_time = start_time
         self.end_time = end_time
-        self.inputs = list()
+        self.inputs = defaultdict(list)
+        self.outputs = defaultdict(list)
         super().__init__()
 
     def apply(self, visitor):
         visitor.visit_operation(self)
 
     def add_input(self, input: OperationArgument):
-        self.inputs.append(input)
+        self.inputs[input.name].append(input)
+
+    def add_output(self, output: OperationArgument):
+        self.outputs[output.name].append(output)
 
     def has_input(self, item_entity: ItemEntity):
-        for arg in self.inputs:
+        for _, arg in self.inputs.items():
             if arg.is_item() and arg.item_id == item_entity.item_id:
                 return True
         return False
 
     def get_named_inputs(self, name: str):
-        return [arg for arg in self.inputs if arg.name == name]
+        if name in self.inputs:
+            return self.inputs[name]
+        return []
+
+    def get_named_outputs(self, name: str):
+        if name in self.outputs:
+            return self.outputs[name]
+        return []
 
     def get_activity_id(self):
         return "op_{}".format(self.operation_id)
