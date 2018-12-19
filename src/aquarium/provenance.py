@@ -510,8 +510,10 @@ class OperationActivity(AttributesMixin):
         op_type['category'] = self.operation_type.category
         op_type['name'] = self.operation_type.name
         op_dict['operation_type'] = op_type
-        op_dict['inputs'] = [arg.as_dict() for arg in self.inputs.values()]
-        op_dict['outputs'] = [arg.as_dict() for arg in self.outputs.values()]
+        op_dict['inputs'] = [
+            arg.as_dict() for l in self.inputs.values() for arg in l]
+        op_dict['outputs'] = [
+            arg.as_dict() for l in self.outputs.values() for arg in l]
         op_dict['start_time'] = self.start_time
         op_dict['end_time'] = self.end_time
         attr_dict = AttributesMixin.as_dict(self)
