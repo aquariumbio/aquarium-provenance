@@ -148,31 +148,41 @@ class TraceFactory:
         For an output Item, adds the OperationActivity as the generator.
         """
         item_id = field_value.child_item_id
-        if item_id:
-            item_entity = self.get_item(item_id=item_id)
-            if field_value.row is not None and field_value.column is not None:
-                logging.debug("Input is a part %s[%s,%s]",
-                              item_id, field_value.row, field_value.column)
-                item_entity = self.get_part(collection=item_entity,
-                                            row=field_value.row,
-                                            column=field_value.column)
-
-            routing_id = self._get_routing_id(field_value, operation_id)
-            if routing_id:
-                logging.debug("Creating arg object for %s %s with routing %s",
-                              field_value.name, item_id, routing_id)
-
-            return OperationInput(
-                name=field_value.name,
-                field_value_id=field_value.id,
-                item_entity=item_entity,
-                routing_id=routing_id
-            )
-        else:
+        if not item_id:
             return OperationParameter(
                 name=field_value.name,
                 field_value_id=field_value.id,
                 value=field_value.value)
+
+        item_entity = self.get_item(item_id=item_id)
+        if item_entity is None:
+            logging.error("No item %s found for input %s",
+                          item_id, field_value.name)
+            return None
+
+        if field_value.row is not None and field_value.column is not None:
+            logging.debug("Input is a part %s[%s,%s]",
+                          item_id, field_value.row, field_value.column)
+            item_entity = self.get_part(collection=item_entity,
+                                        row=field_value.row,
+                                        column=field_value.column)
+            if item_entity is None:
+                logging.error("No part %s[%s,%s] found for input %s",
+                              item_id, field_value.row, field_value.column,
+                              field_value.name)
+                return None
+
+        routing_id = self._get_routing_id(field_value, operation_id)
+        if routing_id:
+            logging.debug("Creating arg object for %s %s with routing %s",
+                          field_value.name, item_id, routing_id)
+
+        return OperationInput(
+            name=field_value.name,
+            field_value_id=field_value.id,
+            item_entity=item_entity,
+            routing_id=routing_id
+        )
 
     def _gather_io_items(self, op_activity):
         """
@@ -189,6 +199,8 @@ class TraceFactory:
         routing_map = RoutingMap()
         for field_value in field_values:
             arg = self._create_argument(field_value, operation.id)
+            if arg is None:
+                continue
 
             if is_input(field_value):
                 op_activity.add_input(arg)
