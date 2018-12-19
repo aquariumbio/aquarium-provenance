@@ -484,9 +484,10 @@ class OperationActivity(AttributesMixin):
         self.outputs[output.name].append(output)
 
     def has_input(self, item_entity: ItemEntity):
-        for _, arg in self.inputs.items():
-            if arg.is_item() and arg.item_id == item_entity.item_id:
-                return True
+        for _, args in self.inputs.items():
+            for arg in args:
+                if arg.is_item() and arg.item_id == item_entity.item_id:
+                    return True
         return False
 
     def get_named_inputs(self, name: str):
