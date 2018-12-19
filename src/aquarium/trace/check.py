@@ -3,7 +3,7 @@ import logging
 
 def check_operation(trace, operation):
     no_error = True
-    for arg in operation.inputs:
+    for arg in operation.get_inputs():
         if arg.is_item() and not trace.has_item(arg.item_id):
             msg = "argument %s of operation %s is not in the trace"
             logging.warning(msg, arg.item_id, operation.operation_id)

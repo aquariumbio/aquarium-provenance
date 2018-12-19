@@ -821,7 +821,7 @@ class YeastMatingVisitor(OperationProvenanceVisitor):
             return
         logging.debug("Visiting item %s for Yeast Mating", item_entity.item_id)
         if self.is_match(item_entity.generator):
-            for arg in item_entity.generator.inputs:
+            for arg in item_entity.generator.get_inputs():
                 if arg.is_item():
                     item_entity.add_source(arg.item)
 
@@ -1129,7 +1129,7 @@ class NCSamplingVisitor(OperationProvenanceVisitor):
         Takes four 24 well plates and constructs three 96 well plates, all of
         which should have the 24 well plates as sources.
         """
-        for input in collection.generator.inputs:
+        for input in collection.generator.get_inputs():
             collection.add_source(input.item)
 
     def fix_part_source(self, part: PartEntity):
@@ -1148,7 +1148,7 @@ class NCSamplingVisitor(OperationProvenanceVisitor):
         anchor_j = 6 * (j // 6)  # either 0 or 6
         anchor = well_coordinates(anchor_i, anchor_j)
 
-        for input in part.generator.inputs:
+        for input in part.generator.get_inputs():
             transfer_coords = input.item.get_attribute(
                 'deep_well_transfer_coords')
             if not transfer_coords:
