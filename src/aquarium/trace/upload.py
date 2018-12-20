@@ -74,7 +74,7 @@ class UploadManager:
                 'size': file_entity.size,
                 'sha256': file_entity.check_sum
             })
-    
+
         if not files:
             return
 
