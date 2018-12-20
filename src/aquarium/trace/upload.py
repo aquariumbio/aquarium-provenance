@@ -49,6 +49,9 @@ class UploadManager:
     def _upload_directory(self, *, path, file_list):
         files = list()
         for file_entity in file_list:
+            if file_entity.is_external():
+                continue
+
             logging.debug("Uploading %s", file_entity.name)
             content_type = self._get_content_type(file_entity)
             try:
@@ -71,6 +74,10 @@ class UploadManager:
                 'size': file_entity.size,
                 'sha256': file_entity.check_sum
             })
+    
+        if not files:
+            return
+
         self._put_object(path=path,
                          filename='upload_manifest.json',
                          file_object=json.dumps(files, indent=2),
