@@ -688,6 +688,7 @@ class PlanTrace(AttributesMixin):
     def as_dict(self):
         trace_dict = dict()
         trace_dict['plan_id'] = self.plan_id
+        trace_dict['experiment_id'] = self.plan_id
         trace_dict['plan_name'] = self.plan_name
         trace_dict['plan_inputs'] = [
             item.item_id for item in self.get_inputs()]
