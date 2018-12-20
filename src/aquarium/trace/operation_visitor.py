@@ -1330,7 +1330,7 @@ class SortYeastDisplayVisitor(CytometryOperationVisitor):
 
 
 def log_missing_generator(item_entity):
-    logging.warning("%s %s has no generator, can't fix sources",
+    logging.warning("%s %s has no generator",
                     item_entity.item_type, item_entity.item_id)
 
 
