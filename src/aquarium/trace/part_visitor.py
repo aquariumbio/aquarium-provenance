@@ -28,6 +28,8 @@ class AddPartsVisitor(ProvenanceVisitor):
         if not source_list:
             return
 
+        logging.debug("source list type: %s", type(source_list))
+
         logging.debug("Adding sources for part %s", part_entity.item_id)
         for src_obj in source_list:
             source_entity = None
