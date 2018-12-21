@@ -533,16 +533,16 @@ class MeasureODAndGFP(MeasurementVisitor, PassthruOperationVisitor):
         if part.sources:
             return
 
-        if part.ref not in ['H7', 'H8']:
+        if part.well not in ['H7', 'H8']:
             return
 
         source = None
         arg_list = part.generator.get_named_inputs('96 Deep Well Plate')
         input_plate = next(iter(arg_list)).item
 
-        if part.ref == 'H7':
+        if part.well == 'H7':
             source_well = 'A1'
-        elif part.ref == 'H8':
+        elif part.well == 'H8':
             source_well = 'A2'
 
         source = input_plate.get_part(source_well)
