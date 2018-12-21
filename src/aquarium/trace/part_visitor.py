@@ -24,13 +24,21 @@ class AddPartsVisitor(ProvenanceVisitor):
         if part_entity.sources:
             return
 
-        source_list = part_entity.get_attribute('source')
-        if not source_list:
+        source_attribute = part_entity.get_attribute('source')
+        if not source_attribute:
             return
-
-        logging.debug("source list type: %s", type(source_list))
-
         logging.debug("Adding sources for part %s", part_entity.item_id)
+
+        if isinstance(source_attribute, list):
+            self.__get_sources_from_list(part_entity=part_entity,
+                                         source_list=source_attribute)
+        elif isinstance(source_attribute, str):
+            self.__get_sources_from_string(part_entity=part_entity,
+                                           source_str=source_attribute)
+        else:
+            logging.error("Bad source type %s", type(source_attribute))
+
+    def __get_sources_from_list(self, *, part_entity, source_list):
         for src_obj in source_list:
             source_entity = None
             source_id = str(src_obj['id'])
@@ -50,6 +58,9 @@ class AddPartsVisitor(ProvenanceVisitor):
             if AddPartsVisitor.samples_match(source=source_entity,
                                              target=part_entity):
                 part_entity.add_source(source_entity)
+
+    def __get_sources_from_string(self, *, part_entity, source_str):
+        logging.debug("Source is %s", source_str)
 
     @staticmethod
     def samples_match(*, source, target):
