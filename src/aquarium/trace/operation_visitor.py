@@ -517,9 +517,42 @@ class MeasureODAndGFP(MeasurementVisitor, PassthruOperationVisitor):
             file_entity.add_generator(item.generator)
 
     def visit_part(self, part):
-        if self.is_match(part.generator):
-            super().visit_part(part)
-            copy_attribute_from_source(part, 'media')
+        if not part.generator:
+            log_missing_generator(part)
+            return
+
+        if not self.is_match(part.generator):
+            return
+
+        super().visit_part(part)
+        copy_attribute_from_source(part, 'media')
+        self.fix_part_source(part)
+
+    def fix_part_source(self, part: PartEntity):
+        if part.sources:
+            return
+
+        if part.ref not in ['H7', 'H8']:
+            return
+
+        source = None
+        arg_list = part.generator.get_named_inputs('96 Deep Well Plate')
+        input_plate = next(iter(arg_list)).item
+
+        if part.ref == 'H7':
+            source_well = 'A1'
+        elif part.ref == 'H8':
+            source_well = 'A2'
+
+        source = input_plate.get_part(source_well)
+        if not source:
+            logging.warning("Source %s/%s for part %s part.item_id not found",
+                            input_plate.item_id, source_well)
+        if source.sample != part.sample:
+            logging.warning("Sample of source %s and part %s do not match",
+                            source.item_id, part.item_id)
+        part.add_source(source)
+        log_source_add(source, part)
 
 
 class IGEMMeasurementVisitor(MeasurementVisitor, IGEMPlateGeneratorVisitor):
@@ -866,12 +899,14 @@ class ResuspensionOutgrowthVisitor(IGEMPlateGeneratorVisitor):
         if part.sources:
             return
 
+        if not part.sample:
+            logging.error("part %s has no sample", part.item_id)
+            return
+
         source = None
         plate_args = part.generator.get_named_inputs('Yeast Plate')
         for arg in plate_args:
-            if not part.sample:
-                logging.error("part %s has no sample", part.item_id)
-            elif arg.item.sample.id == part.sample.id:
+            if arg.item.sample.id == part.sample.id:
                 source = arg.item
         if not source:
             return
