@@ -529,6 +529,7 @@ class MeasureODAndGFP(MeasurementVisitor, PassthruOperationVisitor):
         self.fix_part_source(part)
 
     def fix_part_source(self, part: PartEntity):
+        super().fix_part_source(part)
         if part.sources:
             return
 
@@ -546,9 +547,9 @@ class MeasureODAndGFP(MeasurementVisitor, PassthruOperationVisitor):
 
         source = input_plate.get_part(source_well)
         if not source:
-            logging.warning("Source %s/%s for part %s part.item_id not found",
-                            input_plate.item_id, source_well)
-        if source.sample != part.sample:
+            logging.warning("Source %s/%s for part %s not found",
+                            input_plate.item_id, source_well, part.item_id)
+        if source.sample.id != part.sample.id:
             logging.warning("Sample of source %s and part %s do not match",
                             source.item_id, part.item_id)
         part.add_source(source)
