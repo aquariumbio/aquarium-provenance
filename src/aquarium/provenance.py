@@ -110,6 +110,9 @@ class AbstractEntity(abc.ABC):
         if source_ids:
             entity_dict['sources'] = source_ids
         return entity_dict
+    
+    def is_missing(self):
+        return False
 
 
 class AbstractItemEntity(AbstractEntity, AttributesMixin):
@@ -376,6 +379,14 @@ class ExternalFileEntity(AbstractFileEntity):
         super().__init__(name=name)
 
     def is_external(self):
+        return True
+
+
+class MissingEntity(AbstractEntity):
+    def __init__(self):
+        super().__init__()
+
+    def is_missing(self):
         return True
 
 
