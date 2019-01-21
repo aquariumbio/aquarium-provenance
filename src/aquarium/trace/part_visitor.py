@@ -26,13 +26,18 @@ class AddPartsVisitor(ProvenanceVisitor):
 
         source_attribute = part_entity.get_attribute('source')
         if not source_attribute:
+            logging.debug("Part %s has no source attribute")
             return
         logging.debug("Adding sources for part %s", part_entity.item_id)
 
         if isinstance(source_attribute, list):
+            logging.debug("Source for part %s is a list", part_entity.item_id)
             self._get_sources_from_list(part_entity=part_entity,
                                         source_list=source_attribute)
         elif isinstance(source_attribute, str):
+            logging.debug("Source for part %s is string %s",
+                          part_entity.item_id,
+                          source_attribute)
             self._get_sources_from_string(part_entity=part_entity,
                                           source_str=source_attribute)
         else:
@@ -57,6 +62,8 @@ class AddPartsVisitor(ProvenanceVisitor):
 
             if AddPartsVisitor.samples_match(source=source_entity,
                                              target=part_entity):
+                logging.debug("Sample mismatch for source %s of part %s",
+                              source_entity.item_id, part_entity.item_id)
                 part_entity.add_source(source_entity)
 
     def _get_sources_from_string(self, *, part_entity, source_str):
@@ -68,6 +75,8 @@ class AddPartsVisitor(ProvenanceVisitor):
 
         if AddPartsVisitor.samples_match(source=source_entity,
                                          target=part_entity):
+            logging.debug("Sample mismatch for source %s of part %s",
+                          source_entity.item_id, part_entity.item_id)
             part_entity.add_source(source_entity)
 
     @staticmethod
