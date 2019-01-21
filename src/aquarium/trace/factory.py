@@ -332,6 +332,7 @@ class TraceFactory:
             part_id = part.id
             sample = part.sample
             object_type = part.object_type
+            self.item_map[part_id] = part
 
         part_entity = PartEntity(part_id=part_id, part_ref=part_ref,
                                  collection=collection)
@@ -385,14 +386,13 @@ class TraceFactory:
                               part_association.collection_id)
                 return None
             part = part_association.part
-            part_entity = self.get_part(
-                collection=collection,
-                row=part_association.row,
-                column=part_association.column,
-                part_id=part_association.part_id,
-                sample=part.sample,
-                object_type=part.object_type)
-            self.item_map[part_entity.item_id] = part
+            self.item_map[part_association.part_id] = part
+            self.get_part(collection=collection,
+                          row=part_association.row,
+                          column=part_association.column,
+                          part_id=part_association.part_id,
+                          sample=part.sample,
+                          object_type=part.object_type)
 
     def _get_job(self, job_id):
         """
@@ -538,11 +538,14 @@ class AttributeVisitor(ProvenanceVisitor):
         self._get_attributes(item.data_associations, item_entity)
 
     def visit_part(self, part_entity):
+        logging.debug("Getting attributes for part %s", part_entity.item_id)
         if part_entity.item_id == part_entity.ref:
+            logging.debug("Can't get attribute: part id is ref %s",
+                          part_entity.item_id)
             return
 
         if part_entity.item_id not in self.factory.item_map:
-            logging.debug("Part %s not in factory item_map",
+            logging.debug("Can't get attribute: part %s not in factory item_map",
                           part_entity.item_id)
             return
 
