@@ -110,7 +110,7 @@ class AbstractEntity(abc.ABC):
         if source_ids:
             entity_dict['sources'] = source_ids
         return entity_dict
-    
+
     def is_missing(self):
         return False
 
@@ -118,6 +118,7 @@ class AbstractEntity(abc.ABC):
 class AbstractItemEntity(AbstractEntity, AttributesMixin):
     """
     Defines an abstract entity representing an item.
+    Each object has fields item_id and item_type.
     """
 
     @abc.abstractmethod
@@ -234,6 +235,9 @@ class CollectionEntity(AbstractItemEntity):
 
 
 class PartEntity(AbstractItemEntity):
+    """
+    Defines and entity class for an Aquarium part object.
+    """
 
     def __init__(self, *,
                  part_id: str, part_ref: str,
@@ -383,6 +387,10 @@ class ExternalFileEntity(AbstractFileEntity):
 
 
 class MissingEntity(AbstractEntity):
+    """
+    Represents entities that are missing in Aquarium.
+    """
+
     def __init__(self):
         super().__init__()
 
