@@ -469,6 +469,13 @@ class JobActivity:
     def get_activity_id(self):
         return "job_{}".format(self.job_id)
 
+    @property
+    def operation_type(self):
+        if not self.operations:
+            return None
+
+        return next(iter(self.operations)).operation_type
+
     def apply(self, visitor):
         visitor.visit_job(self)
 

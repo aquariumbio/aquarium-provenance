@@ -67,10 +67,6 @@ class OperationProvenanceVisitor(ProvenanceVisitor):
         if generator is None:
             return False
 
-        # TODO: can we not check operation type of the job?
-        if generator.is_job():
-            return False
-
         return generator.operation_type.name == self.name
 
     def visit_part(self, part: PartEntity):
@@ -283,8 +279,6 @@ class CytometryOperationVisitor(MeasurementVisitor):
         self.add_job(job_id, file_entity)
 
         if not self.job_map[job_id]:
-            logging.error("No generator found for file %s",
-                          file_entity.id)
             return None
 
         return self.job_map[job_id].pop()
