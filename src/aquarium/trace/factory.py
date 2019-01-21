@@ -293,6 +293,12 @@ class TraceFactory:
         if part_id is not None:
             if self.trace.has_item(part_id):
                 return self.trace.get_item(part_id)
+            if part_id not in self.item_map:
+                part = self.session.Item.find(part_id)
+                if not part:
+                    logging.warning("Did not find part for id %s", part_id)
+                    return None
+                self.item_map[part_id] = part
 
         if not collection:
             logging.error("No collection given for new part")
@@ -332,13 +338,6 @@ class TraceFactory:
             part_id = part.id
             sample = part.sample
             object_type = part.object_type
-            self.item_map[part_id] = part
-
-        if part_id not in self.item_map:
-            part = self.session.Item.find(part_id)
-            if not part:
-                logging.warning("Did not find part for id %s", part_id)
-                return None
             self.item_map[part_id] = part
 
         part_entity = PartEntity(part_id=part_id, part_ref=part_ref,
