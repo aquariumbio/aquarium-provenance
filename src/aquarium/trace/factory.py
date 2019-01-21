@@ -417,6 +417,7 @@ class TraceFactory:
         self.job_map[str(job_id)] = job
         start_time = job.start_time
         end_time = job.end_time
+        status = job.status
         operations = list()
         for op in job.operations:
             operation_id = str(op.id)
@@ -434,7 +435,8 @@ class TraceFactory:
         job_activity = JobActivity(job=job,
                                    operations=operations,
                                    start_time=start_time,
-                                   end_time=end_time)
+                                   end_time=end_time,
+                                   status=status)
         self.trace.add_job(job_activity)
         return job_activity
 

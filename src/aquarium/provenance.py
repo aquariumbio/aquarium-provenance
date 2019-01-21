@@ -455,11 +455,12 @@ class OperationInput(OperationArgument):
 
 
 class JobActivity:
-    def __init__(self, *, job, operations, start_time, end_time):
+    def __init__(self, *, job, operations, start_time, end_time, status):
         self.job_id = str(job.id)
         self.operations = operations
         self.start_time = start_time
         self.end_time = end_time
+        self.status = status
         for operation in self.operations:
             operation.job = self
 
@@ -483,6 +484,7 @@ class JobActivity:
         job_dict = dict()
         job_dict['job_id'] = self.job_id
         job_dict['operations'] = [op.operation_id for op in self.operations]
+        job_dict['status'] = self.status
         return job_dict
 
 
