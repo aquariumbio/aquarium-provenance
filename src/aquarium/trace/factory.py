@@ -334,6 +334,13 @@ class TraceFactory:
             object_type = part.object_type
             self.item_map[part_id] = part
 
+        if part_id not in self.item_map:
+            part = self.session.Item.find(part_id)
+            if not part:
+                logging.warning("Did not find part for id %s", part_id)
+                return None
+            self.item_map[part_id] = part
+
         part_entity = PartEntity(part_id=part_id, part_ref=part_ref,
                                  collection=collection)
 
