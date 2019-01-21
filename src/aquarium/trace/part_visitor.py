@@ -26,7 +26,8 @@ class AddPartsVisitor(ProvenanceVisitor):
 
         source_attribute = part_entity.get_attribute('source')
         if not source_attribute:
-            logging.debug("Part %s has no source attribute")
+            logging.debug("Part %s has no source attribute",
+                          part_entity.item_id)
             return
         logging.debug("Adding sources for part %s", part_entity.item_id)
 
