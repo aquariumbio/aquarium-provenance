@@ -34,7 +34,7 @@ class SBOLVisitor(ProvenanceVisitor):
         if activity.is_job():
             activity_name = "job_{}".format(activity.job_id)
         else:
-            activity_name = "operation_{}".format(operation.operation_id)
+            activity_name = "operation_{}".format(activity.operation_id)
         if activity_name in self.doc.activities:
             return self.doc.activities[activity_name]
         return self.doc.activities.create(activity_name)
