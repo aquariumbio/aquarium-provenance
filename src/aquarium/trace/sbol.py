@@ -1,6 +1,9 @@
-from aquarium.provenance import (PlanTrace, ItemEntity, OperationActivity)
+from aquarium.provenance import (
+    PlanTrace, ItemEntity, JobActivity, OperationActivity)
 from aquarium.trace.visitor import ProvenanceVisitor
-from sbol import Document, setHomespace
+from sbol import (
+    Activity, ComponentDefinition, Document, setHomespace)
+from typing import Union
 
 
 class SBOLVisitor(ProvenanceVisitor):
@@ -13,6 +16,7 @@ class SBOLVisitor(ProvenanceVisitor):
     Does not currently handle jobs as generators, or files generated as 
     measurements.
     """
+    # TODO: decide whether prefixes need to be customized
 
     def __init__(self, *, namespace: str, trace: PlanTrace = None):
         # TODO: is it sufficient for homespace to be set only for document init?
@@ -21,6 +25,10 @@ class SBOLVisitor(ProvenanceVisitor):
         super().__init__(trace)
 
     def visit_item(self, item: ItemEntity):
+        """
+        Adds an SBOL component for the given ItemEntity and sets the generator
+        if the generating activity is an OperationActivity.
+        """
         component = self._get_component(item)
 
         if item.generator is None:
@@ -45,11 +53,14 @@ class SBOLVisitor(ProvenanceVisitor):
             usage = activity.usages.create("usage_{}".format(item.item_id))
             usage.entity = component.identity
 
-    def _get_activity(self, activity):
+    def _get_activity(self,
+                      activity: Union[OperationActivity, JobActivity]
+                      ) -> Activity:
         """
         Returns an SBOL activity for the Aquarium activity.
         Creates the object if it does not exist.
         """
+
         if activity.is_job():
             activity_name = "job_{}".format(activity.job_id)
         else:
@@ -58,7 +69,7 @@ class SBOLVisitor(ProvenanceVisitor):
             return self.doc.activities[activity_name]
         return self.doc.activities.create(activity_name)
 
-    def _get_component(self, item: ItemEntity):
+    def _get_component(self, item: ItemEntity) -> ComponentDefinition:
         """
         Returns an SBOL component for the given ItemEntity.
         Creates the object if it does not exist.
