@@ -6,6 +6,7 @@ setup(
     packages=find_packages('src'),
     install_requires=[
         'pydent',
-        'boto3'
+        'boto3',
+        'pySBOL'
     ]
 )

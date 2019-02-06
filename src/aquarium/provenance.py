@@ -521,6 +521,13 @@ class OperationActivity(AttributesMixin):
     def get_inputs(self):
         return [arg for args in self.inputs.values() for arg in args]
 
+    def get_input_items(self):
+        return [
+            arg
+            for args in self.inputs.values()
+            for arg in args if arg.is_item()
+        ]
+
     def get_outputs(self):
         return [arg for args in self.outputs.values() for arg in args]
 
