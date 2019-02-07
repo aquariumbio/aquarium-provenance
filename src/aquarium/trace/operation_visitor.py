@@ -29,9 +29,11 @@ from util.plate import well_coordinates, coordinates_for
 
 class ChallengeProblemTraceVisitor(ProvenanceVisitor):
 
-    def __init__(self, *, trace=None, labname, challenge_problem):
+    def __init__(self, *,
+                 trace=None, labname: str, challenge_problem, experiment_reference):
         self.labname = labname
         self.challenge_problem = challenge_problem
+        self.experiment_reference = experiment_reference
         super().__init__(trace)
 
     def visit_plan(self, plan: PlanTrace):
@@ -39,22 +41,12 @@ class ChallengeProblemTraceVisitor(ProvenanceVisitor):
         cp_attr = 'challenge_problem'
         if not plan.has_attribute(cp_attr):
             logging.warning("Adding \'%s\' plan attribute", cp_attr)
-            if self.challenge_problem == 'yg':
-                plan.add_attribute({cp_attr: 'YEAST_GATES'})
-            elif self.challenge_problem == 'nc':
-                plan.add_attribute({cp_attr: 'NOVEL_CHASSIS'})
-            elif self.challenge_problem == 'ps':
-                plan.add_attribute({cp_attr: 'PROTEIN_DESIGN'})
+            plan.add_attribute({cp_attr: self.challenge_problem})
 
         exp_ref_attr = 'experiment_reference'
         if not plan.has_attribute(exp_ref_attr):
             logging.warning("Adding \'%s\' plan attribute", exp_ref_attr)
-            if self.challenge_problem == 'yg':
-                plan.add_attribute({exp_ref_attr: 'Yeast-Gates'})
-            elif self.challenge_problem == 'nc':
-                plan.add_attribute({exp_ref_attr: 'NovelChassis-NAND-Gate'})
-            elif self.challenge_problem == 'ps':
-                logging.error('no experiment reference for protein design')
+            plan.add_attribute({exp_ref_attr: self.experiment_reference})
 
 
 class OperationProvenanceVisitor(ProvenanceVisitor):
