@@ -30,23 +30,36 @@ from util.plate import well_coordinates, coordinates_for
 class ChallengeProblemTraceVisitor(ProvenanceVisitor):
 
     def __init__(self, *,
-                 trace=None, labname: str, challenge_problem, experiment_reference):
+                 trace: PlanTrace = None,
+                 labname: str,
+                 challenge_problem,
+                 experiment_reference):
         self.labname = labname
         self.challenge_problem = challenge_problem
         self.experiment_reference = experiment_reference
         super().__init__(trace)
 
     def visit_plan(self, plan: PlanTrace):
-        plan.add_attribute({'lab': self.labname})
-        cp_attr = 'challenge_problem'
-        if not plan.has_attribute(cp_attr):
-            logging.warning("Adding \'%s\' plan attribute", cp_attr)
-            plan.add_attribute({cp_attr: self.challenge_problem})
+        self._add_attribute(
+            plan=plan,
+            attribute_name='lab',
+            value=self.labname
+        )
+        self._add_attribute(
+            plan=plan,
+            attribute_name='challenge_problem',
+            value=self.challenge_problem
+        )
+        self._add_attribute(
+            plan=plan,
+            attribute_name='experiment_reference',
+            value=self.experiment_reference
+        )
 
-        exp_ref_attr = 'experiment_reference'
-        if not plan.has_attribute(exp_ref_attr):
-            logging.warning("Adding \'%s\' plan attribute", exp_ref_attr)
-            plan.add_attribute({exp_ref_attr: self.experiment_reference})
+    def _add_attribute(self, *, plan, attribute_name: str, value: str):
+        if not plan.has_attribute(attribute_name):
+            logging.warning("Adding \'%s\' plan attribute", attribute_name)
+            plan.add_attribute({attribute_name: value})
 
 
 class OperationProvenanceVisitor(ProvenanceVisitor):
