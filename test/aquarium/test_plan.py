@@ -42,7 +42,7 @@ class TestPlanTrace:
         assert item.item_id == 'item1'
 
     def test_plan(self, simple_plan):
-       
+
         plan = simple_plan
         op_activity = create_operation('op_external')
         item1 = plan.get_item('item1')
