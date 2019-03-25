@@ -36,6 +36,11 @@ class AttributesMixin(abc.ABC):
         self.attributes = dict()
         super().__init__()
 
+    def __eq__(self, other):
+        if not isinstance(other, AttributesMixin):
+            return False
+        return self.attributes == other.attributes
+
     def add_attribute(self, attribute):
         """
         Adds all key-value pairs in the given dictionary to the attributes
@@ -71,6 +76,12 @@ class AbstractEntity(abc.ABC):
         self.generator = None
         self.sources = set()
         super().__init__()
+
+    def __eq__(self, other):
+        if not isinstance(other, AbstractEntity):
+            return False
+        return (self.generator == other.generator
+                and self.sources == other.sources)
 
     def add_generator(self, activity):
         self.generator = activity
@@ -128,8 +139,10 @@ class AbstractItemEntity(AbstractEntity, AttributesMixin):
         super().__init__()
 
     def __eq__(self, other):
-        return (isinstance(other, AbstractItemEntity) and
-                self.item_id == other.item_id)
+        return (isinstance(other, AbstractItemEntity)
+                and self.item_id == other.item_id
+                and AbstractEntity.__eq__(self, other)
+                and AttributesMixin.__eq__(self, other))
 
     def __hash__(self):
         return hash(self.item_id)
@@ -174,6 +187,14 @@ class ItemEntity(AbstractItemEntity):
         self.object_type = object_type
         super().__init__(item_id=item_id, item_type='item')
 
+    def __eq__(self, other):
+        if not isinstance(other, ItemEntity):
+            return False
+        if not super().__eq__(other):
+            return False
+        return (self.sample == other.sample
+                and self.object_type == other.object_type)
+
     def apply(self, visitor):
         visitor.visit_item(self)
 
@@ -205,6 +226,14 @@ class CollectionEntity(AbstractItemEntity):
         self.object_type = collection.object_type
         self.part_map = dict()
         super().__init__(item_id=collection.id, item_type='collection')
+
+    def __eq__(self, other):
+        if not isinstance(other, CollectionEntity):
+            return False
+        if not super().__eq__(other):
+            return False
+        return (self.object_type == other.object_type
+                and self.part_map == other.part_map)
 
     def add_part(self, part):
         self.part_map[part.well] = part
@@ -249,6 +278,16 @@ class PartEntity(AbstractItemEntity):
         self.collection = collection
         self.collection.add_part(self)
         super().__init__(item_id=part_id, item_type='part')
+
+    def __eq__(self, other):
+        if not isinstance(other, PartEntity):
+            return False
+        if not super().__eq__(other):
+            return False
+        return (self.ref == other.ref
+                and self.sample == other.sample
+                and self.object_type == other.object_type
+                and self.collection == other.collection)
 
     @property
     def well(self):
@@ -306,7 +345,13 @@ class AbstractFileEntity(AbstractEntity):
         super().__init__()
 
     def __eq__(self, other):
-        return isinstance(other, FileEntity) and self.id == self.id
+        if not isinstance(other, AbstractFileEntity):
+            return False
+        if not super().__eq__(other):
+            return False
+        return (self.name == other.name
+                and self.id == other.id
+                and self.check_sum == other.check_sum)
 
     def __hash__(self):
         return hash(self.id)
@@ -366,6 +411,16 @@ class FileEntity(AbstractFileEntity):
         self.upload = upload
         super().__init__(name=upload.name)
 
+    def __eq__(self, other):
+        if not isinstance(other, FileEntity):
+            return False
+        if not super().__eq__(other):
+            return False
+        return (self.upload_id == other.upload_id
+                and self.size == other.size
+                and self.job == other.job
+                and self.upload == other.upload)
+
     def as_dict(self, *, path=None):
         file_dict = super().as_dict(path=path)
         file_dict['upload_id'] = self.upload_id
@@ -382,6 +437,11 @@ class ExternalFileEntity(AbstractFileEntity):
     def __init__(self, *, name):
         super().__init__(name=name)
 
+    def __eq__(self, other):
+        if not isinstance(other, ExternalFileEntity):
+            return False
+        return super().__eq__(other)
+
     def is_external(self):
         return True
 
@@ -393,6 +453,11 @@ class MissingEntity(AbstractEntity):
 
     def __init__(self):
         super().__init__()
+
+    def __eq__(self, other):
+        if not isinstance(other, MissingEntity):
+            return False
+        return super().__eq__(other)
 
     def is_missing(self):
         return True
@@ -408,6 +473,12 @@ class OperationArgument(abc.ABC):
     def __init__(self, *, name: str, field_value_id: str):
         self.name = name
         self.field_value_id = str(field_value_id)
+
+    def __eq__(self, other):
+        if not isinstance(other, OperationArgument):
+            return False
+        return (self.name == other.name
+                and self.field_value_id == other.field_value_id)
 
     def is_item(self):
         """
@@ -429,6 +500,13 @@ class OperationParameter(OperationArgument):
         self.value = value
         super().__init__(name=name, field_value_id=field_value_id)
 
+    def __eq__(self, other):
+        if not isinstance(other, OperationParameter):
+            return False
+        if not super().__eq__(other):
+            return False
+        return self.value == other.value
+
     def as_dict(self):
         arg_dict = super().as_dict()
         arg_dict['value'] = self.value
@@ -442,6 +520,15 @@ class OperationInput(OperationArgument):
         self.item = item_entity
         self.routing_id = routing_id
         super().__init__(name=name, field_value_id=field_value_id)
+
+    def __eq__(self, other):
+        if not isinstance(other, OperationInput):
+            return False
+        if not super().__eq__(other):
+            return False
+        return (self.item_id == other.item_id
+                and self.item == other.item
+                and self.routing_id == other.routing_id)
 
     def is_item(self):
         return True
@@ -463,6 +550,15 @@ class JobActivity:
         self.status = status
         for operation in self.operations:
             operation.job = self
+
+    def __eq__(self, other):
+        if not isinstance(other, JobActivity):
+            return False
+        return (self.job_id == other.job_id
+                and self.operations == other.operations
+                and self.start_time == other.start_time
+                and self.end_time == other.end_time
+                and self.status == other.status)
 
     def is_job(self):
         return True
@@ -501,6 +597,20 @@ class OperationActivity(AttributesMixin):
         self.inputs = defaultdict(list)
         self.outputs = defaultdict(list)
         super().__init__()
+
+    def __eq__(self, other):
+        if not isinstance(other, OperationActivity):
+            return False
+        if not super().__eq__(other):
+            return False
+        return (self.type == other.type
+                and self.operation_id == other.operation_id
+                and self.operation_type == other.operation_type
+                and self.job.job_id == other.job.job_id
+                and self.start_time == other.start_time
+                and self.end_time == other.end_time
+                and self.inputs == other.inputs
+                and self.outputs == other.outputs)
 
     def apply(self, visitor):
         visitor.visit_operation(self)
@@ -571,74 +681,103 @@ class OperationActivity(AttributesMixin):
 class PlanTrace(AttributesMixin):
 
     def __init__(self, *, plan_id: str, name: str):
-        self.plan_id = str(plan_id)
-        self.plan_name = name
-        self.operations = dict()
-        self.jobs = dict()
-        self.items = dict()
-        self.files = dict()
-        self.input_list = defaultdict(list)  # inverted list: item->op
+        self.__plan_id = str(plan_id)
+        self.__plan_name = name
+        self.__operations = dict()
+        self.__jobs = dict()
+        self.__items = dict()
+        self.__files = dict()
+        self.__input_list = defaultdict(list)  # inverted list: item->op
         super().__init__()
+
+    def __eq__(self, other):
+        if not isinstance(other, PlanTrace):
+            return False
+        if not super().__eq__(other):
+            return False
+        return (self.__plan_id == other.plan_id
+                and self.__plan_name == other.plan_name
+                and self.__operations == other.operations
+                and self.__jobs == other.jobs
+                and self.__items == other.items
+                and self.__files == other.files
+                and self.__input_list == other.input_list)
+
+    @property
+    def items(self):
+        return self.__items
+
+    @property
+    def files(self):
+        return self.__files
+
+    @property
+    def operations(self):
+        return self.__operations
+
+    @property
+    def jobs(self):
+        return self.__jobs
 
     def add_file(self, file_entity):
         logging.debug("Adding file %s to trace", file_entity.id)
-        self.files[file_entity.id] = file_entity
+        self.__files[file_entity.id] = file_entity
 
     def add_item(self, item_entity):
         logging.debug("Adding %s %s to trace",
                       item_entity.item_type, item_entity.item_id)
-        self.items[item_entity.item_id] = item_entity
+        self.__items[item_entity.item_id] = item_entity
 
     def add_input(self, item_id, op_activity):
-        self.input_list[item_id].append(op_activity)
+        self.__input_list[item_id].append(op_activity)
 
     def add_operation(self, operation):
         logging.debug("Adding operation %s to trace", operation.operation_id)
-        self.operations[operation.operation_id] = operation
+        self.__operations[operation.operation_id] = operation
 
     def add_job(self, job):
         logging.debug("Adding job %s to trace", job.job_id)
-        self.jobs[job.job_id] = job
+        self.__jobs[job.job_id] = job
 
     def has_job(self, job_id):
-        return bool(job_id) and str(job_id) in self.jobs
+        return bool(job_id) and str(job_id) in self.__jobs
 
     def has_item(self, item_id):
-        return bool(item_id) and str(item_id) in self.items
+        return bool(item_id) and str(item_id) in self.__items
 
     def has_file(self, id):
-        return bool(id) and str(id) in self.files
+        return bool(id) and str(id) in self.__files
 
     def has_operation(self, operation_id):
-        return bool(operation_id) and str(operation_id) in self.operations
+        return bool(operation_id) and str(operation_id) in self.__operations
 
     def get_collections(self):
-        return [item for _, item in self.items.items()
+        return [item for _, item in self.__items.items()
                 if item.is_collection()]
 
     def get_items(self):
-        return [item for _, item in self.items.items() if item.is_item()]
+        return [item for _, item in self.__items.items() if item.is_item()]
 
     def get_parts(self):
-        return [item for _, item in self.items.items() if item.is_part()]
+        return [item for _, item in self.__items.items() if item.is_part()]
 
     def get_item(self, item_id):
         item_key = str(item_id)
-        if item_key in self.items:
-            return self.items[item_key]
+        if item_key in self.__items:
+            return self.__items[item_key]
 
     def get_job(self, job_id):
         job_key = str(job_id)
-        if job_key in self.jobs:
-            return self.jobs[job_key]
+        if job_key in self.__jobs:
+            return self.__jobs[job_key]
 
     def get_jobs(self):
-        return [job for _, job in self.jobs.items()]
+        return [job for _, job in self.__jobs.items()]
 
     def get_operation(self, operation_id):
         op_key = str(operation_id)
-        if op_key in self.operations:
-            return self.operations[op_key]
+        if op_key in self.__operations:
+            return self.__operations[op_key]
 
     def get_operations(self, *, input=None):
         """
@@ -647,9 +786,9 @@ class PlanTrace(AttributesMixin):
         input.
         """
         if input:
-            return self.input_list[input]
+            return self.__input_list[input]
         else:
-            return [op for _, op in self.operations.items()]
+            return [op for _, op in self.__operations.items()]
 
     def get_file(self, id):
         """
@@ -657,8 +796,8 @@ class PlanTrace(AttributesMixin):
         Returns None if there is no such file.
         """
         file_key = str(id)
-        if file_key in self.files:
-            return self.files[file_key]
+        if file_key in self.__files:
+            return self.__files[file_key]
 
     def get_files(self, *, generator=None):
         """
@@ -667,10 +806,10 @@ class PlanTrace(AttributesMixin):
         generator.
         """
         if generator:
-            return [file for _, file in self.files.items()
+            return [file for _, file in self.__files.items()
                     if file.generated_by(generator)]
         else:
-            return [file for _, file in self.files.items()]
+            return [file for _, file in self.__files.items()]
 
     def get_inputs(self):
         """
@@ -678,7 +817,7 @@ class PlanTrace(AttributesMixin):
         An input is determined as items with no source or generator in the plan
         that is not part of another item.
         """
-        return [item for _, item in self.items.items() if self.is_input(item)]
+        return [item for _, item in self.__items.items() if self.is_input(item)]
 
     def is_input(self, item):
         """
@@ -713,28 +852,28 @@ class PlanTrace(AttributesMixin):
 
     def apply_all(self, visitor):
         visitor.visit_plan(self)
-        for _, operation in self.operations.items():
+        for _, operation in self.__operations.items():
             operation.apply(visitor)
-        for _, item in self.items.items():
+        for _, item in self.__items.items():
             item.apply(visitor)
-        for _, file in self.files.items():
+        for _, file in self.__files.items():
             file.apply(visitor)
 
     def as_dict(self):
         trace_dict = dict()
-        trace_dict['plan_id'] = self.plan_id
-        trace_dict['experiment_id'] = self.plan_id
-        trace_dict['plan_name'] = self.plan_name
+        trace_dict['plan_id'] = self.__plan_id
+        trace_dict['experiment_id'] = self.__plan_id
+        trace_dict['plan_name'] = self.__plan_name
         trace_dict['plan_inputs'] = [
             item.item_id for item in self.get_inputs()]
         trace_dict['operations'] = [op.as_dict()
-                                    for _, op in self.operations.items()]
-        trace_dict['jobs'] = [job.as_dict() for _, job in self.jobs.items()]
+                                    for _, op in self.__operations.items()]
+        trace_dict['jobs'] = [job.as_dict() for _, job in self.__jobs.items()]
         trace_dict['items'] = [item.as_dict()
-                               for _, item in self.items.items()]
+                               for _, item in self.__items.items()]
         trace_dict['files'] = [
             file.as_dict(path=file.generator.get_activity_id())
-            for _, file in self.files.items()
+            for _, file in self.__files.items()
             if file.generator
         ]
         super_dict = super().as_dict()
