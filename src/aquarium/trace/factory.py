@@ -26,15 +26,14 @@ class TraceFactory:
 
     def __init__(self, *, session, plan, trace):
         self.trace = trace
-        self.session = session
-        self.plan = plan
-        self.attribute_visitor = AttributeVisitor(trace=plan, factory=self)
-        self.item_map = dict()        # item_id -> item
-        self.op_map = dict()          # operation_id -> operation
-        self.job_map = dict()         # job_id -> job
-        self.uploads = dict()         # upload_id -> file_entity
-        self.external_files = dict()  # name -> external_file_entity
-        self.part_map = dict()        # part ref string -> part_entity
+        self.__session = session
+        self.__attribute_visitor = AttributeVisitor(trace=plan, factory=self)
+        self.__item_map = dict()        # item_id -> item
+        self.__op_map = dict()          # operation_id -> operation
+        self.__job_map = dict()         # job_id -> job
+        self.__uploads = dict()         # upload_id -> file_entity
+        self.__external_files = dict()  # name -> external_file_entity
+        self.__part_map = dict()        # part ref string -> part_entity
 
     @staticmethod
     def create_from(*, session, plan, visitor=None):
@@ -47,7 +46,12 @@ class TraceFactory:
 
         Then visits the collected items, creating parts for collections.
 
-        Associated uploads are visited last
+        Associated uploads are visited last.
+
+        Args:
+            session: the pydent Session object
+            plan: the pydent.model.Plan object
+            visitor: a provenance visitor
         """
         trace = PlanTrace(plan_id=plan.id, name=plan.name)
         factory = TraceFactory(
@@ -55,36 +59,52 @@ class TraceFactory:
             plan=plan,
             trace=trace
         )
-        trace.apply(factory.attribute_visitor)
+        trace.apply(factory.__attribute_visitor)
 
         for operation in plan.operations:
-            factory._add_operation(operation)
+            factory.__add_operation(operation)
 
         # Apply the primary visitor first, the given visitor, and then patch
         primary_visitor = BatchVisitor()
         primary_visitor.add_visitor(JobVisitor())
         primary_visitor.add_visitor(AddPartsVisitor())
         primary_visitor.add_visitor(FileProvenanceVisitor())
-        factory._apply(primary_visitor)
+        factory.__apply(primary_visitor)
 
         if visitor:
-            factory._apply(visitor)
+            factory.__apply(visitor)
 
         patch_visitor = create_patch_visitor()
-        factory._apply(patch_visitor)
+        factory.__apply(patch_visitor)
 
         return factory.trace
 
-    def _add_operation(self, operation):
+    @property
+    def item_map(self):
+        return self.__item_map
+
+    @property
+    def op_map(self):
+        return self.__op_map
+
+    @property
+    def job_map(self):
+        return self.__job_map
+
+    @property
+    def uploads(self):
+        return self.__uploads
+
+    def __add_operation(self, operation):
         """
         Adds an activity for the given operation, and gathers input/output
         items for the operation.
         """
-        self.op_map[str(operation.id)] = operation
+        self.__op_map[str(operation.id)] = operation
         op_activity = self.get_operation(operation)
-        self._gather_io_items(op_activity)
+        self.__gather_io_items(op_activity)
 
-    def _apply(self, visitor):
+    def __apply(self, visitor):
         """
         Applies the visitor to the trace of the factory.
 
@@ -121,7 +141,7 @@ class TraceFactory:
         for file_entity in self.trace.get_files():
             file_entity.apply(visitor)
 
-    def _get_routing_id(self, field_value, operation_id):
+    def __get_routing_id(self, field_value, operation_id):
         """
         Returns the routing ID from the field values, None if there is no ID.
         """
@@ -139,7 +159,7 @@ class TraceFactory:
                           field_value.name, operation_id)
         return routing_id
 
-    def _create_argument(self, field_value, operation_id):
+    def __create_argument(self, field_value, operation_id):
         """
         Creates an OperationArgument object for the given FieldValue.
 
@@ -172,7 +192,7 @@ class TraceFactory:
                               field_value.name)
                 return None
 
-        routing_id = self._get_routing_id(field_value, operation_id)
+        routing_id = self.__get_routing_id(field_value, operation_id)
         if routing_id:
             logging.debug("Creating arg object for %s %s with routing %s",
                           field_value.name, item_id, routing_id)
@@ -184,7 +204,7 @@ class TraceFactory:
             routing_id=routing_id
         )
 
-    def _gather_io_items(self, op_activity):
+    def __gather_io_items(self, op_activity):
         """
         Visits field values of the given OperationActivity to identify
         operation arguments and outputs.
@@ -193,12 +213,12 @@ class TraceFactory:
         Sets the operation as the generator for outputs, and adds sources to
         outputs when indicated by routing.
         """
-        operation = self.op_map[op_activity.operation_id]
+        operation = self.__op_map[op_activity.operation_id]
         logging.debug("Getting I/O for operation %s", operation.id)
         field_values = sorted(operation.field_values, key=lambda fv: fv.role)
         routing_map = RoutingMap()
         for field_value in field_values:
-            arg = self._create_argument(field_value, operation.id)
+            arg = self.__create_argument(field_value, operation.id)
             if arg is None:
                 continue
 
@@ -222,12 +242,18 @@ class TraceFactory:
                     arg.item.add_generator(op_activity)
 
     def get_external_file(self, *, name) -> ExternalFileEntity:
-        if name in self.external_files:
-            return self.external_files['name']
+        """
+        Returns the file entity for an external file identified by the name.
+
+        Args:
+            name: the file name
+        """
+        if name in self.__external_files:
+            return self.__external_files['name']
 
         file_entity = ExternalFileEntity(name=name)
         self.trace.add_file(file_entity)
-        self.external_files[name] = file_entity
+        self.__external_files[name] = file_entity
 
         return file_entity
 
@@ -236,11 +262,11 @@ class TraceFactory:
         Returns the file entity for an upload associated with a plan.
         If the entity is not currently in the trace, creates it.
         """
-        if upload_id in self.uploads:
-            return self.uploads[upload_id]
+        if upload_id in self.__uploads:
+            return self.__uploads[upload_id]
 
         file_entity = None
-        upload = self.session.Upload.find(upload_id)
+        upload = self.__session.Upload.find(upload_id)
         if not upload:
             logging.error("No upload object for ID %s", upload_id)
             return None
@@ -248,7 +274,7 @@ class TraceFactory:
             logging.error("No job in upload %s", upload_id)
             return None
 
-        file_job = self._get_job(upload.job.id)
+        file_job = self.__get_job(upload.job.id)
         if not file_job:
             logging.debug("Job %s of file upload %s is not in plan",
                           upload.job.id, upload_id)
@@ -256,7 +282,7 @@ class TraceFactory:
 
         file_entity = FileEntity(upload=upload, job=file_job)
         self.trace.add_file(file_entity)
-        self.uploads[upload_id] = file_entity
+        self.__uploads[upload_id] = file_entity
 
         return file_entity
 
@@ -269,9 +295,9 @@ class TraceFactory:
         if self.trace.has_item(item_id):
             return self.trace.get_item(item_id)
 
-        item_obj = self.session.Item.find(item_id)
+        item_obj = self.__session.Item.find(item_id)
         if is_collection(item_obj):
-            item_obj = self.session.Collection.find(item_id)
+            item_obj = self.__session.Collection.find(item_id)
             item_entity = CollectionEntity(collection=item_obj)
 
         else:
@@ -280,11 +306,11 @@ class TraceFactory:
                 sample=item_obj.sample,
                 object_type=item_obj.object_type)
 
-        self.item_map[str(item_id)] = item_obj
+        self.__item_map[str(item_id)] = item_obj
         self.trace.add_item(item_entity)
-        item_entity.apply(self.attribute_visitor)
+        item_entity.apply(self.__attribute_visitor)
         if item_entity.is_collection():
-            self._collect_parts(item_obj)
+            self.__collect_parts(item_obj)
 
         return item_entity
 
@@ -312,9 +338,9 @@ class TraceFactory:
         part_ref = get_part_ref(collection_id=collection.item_id, well=well)
 
         logging.debug("Getting part %s", part_ref)
-        if part_ref in self.part_map:
+        if part_ref in self.__part_map:
             logging.debug("Ref %s in factory part_map", part_ref)
-            return self.part_map[part_ref]
+            return self.__part_map[part_ref]
         if self.trace.has_item(part_ref):
             logging.debug("Ref %s in plan", part_ref)
             return self.trace.get_item(part_ref)
@@ -322,7 +348,7 @@ class TraceFactory:
         if part_id is None:
             if row is None or column is None:
                 (row, column) = coordinates_for(well)
-            item = self.item_map[collection.item_id]
+            item = self.__item_map[collection.item_id]
             part = item.part(row, column)
             if not part:
                 logging.warning("Did not find part for ref %s", part_ref)
@@ -332,14 +358,14 @@ class TraceFactory:
             part_id = str(part.id)
             sample = part.sample
             object_type = part.object_type
-            self.item_map[part_id] = part
+            self.__item_map[part_id] = part
 
-        if part_id not in self.item_map:
-            part = self.session.Item.find(part_id)
+        if part_id not in self.__item_map:
+            part = self.__session.Item.find(part_id)
             if not part:
                 logging.warning("Did not find part for id %s", part_id)
                 return None
-            self.item_map[str(part_id)] = part
+            self.__item_map[str(part_id)] = part
 
         part_entity = PartEntity(part_id=part_id, part_ref=part_ref,
                                  collection=collection)
@@ -349,9 +375,9 @@ class TraceFactory:
         if object_type is not None:
             part_entity.object_type = object_type
 
-        self.part_map[part_entity.ref] = part_entity
+        self.__part_map[part_entity.ref] = part_entity
         self.trace.add_item(part_entity)
-        part_entity.apply(self.attribute_visitor)
+        part_entity.apply(self.__attribute_visitor)
         return part_entity
 
     def get_operation(self, operation) -> OperationActivity:
@@ -368,10 +394,10 @@ class TraceFactory:
             operation_type=operation.operation_type)
 
         self.trace.add_operation(op_activity)
-        op_activity.apply(self.attribute_visitor)
+        op_activity.apply(self.__attribute_visitor)
         return op_activity
 
-    def _collect_parts(self, item):
+    def __collect_parts(self, item):
         logging.debug("Collecting parts for %s", item.id)
         for part_association in item.part_associations:
             logging.debug("Getting part %s", part_association.part_id)
@@ -394,7 +420,7 @@ class TraceFactory:
                 return None
             part = part_association.part
             part_id = str(part.id)
-            self.item_map[part_id] = part
+            self.__item_map[part_id] = part
             self.get_part(collection=collection,
                           row=part_association.row,
                           column=part_association.column,
@@ -402,7 +428,7 @@ class TraceFactory:
                           sample=part.sample,
                           object_type=part.object_type)
 
-    def _get_job(self, job_id):
+    def __get_job(self, job_id):
         """
         Returns the job activity for the operation.
         If the activity is not currently in the trace, creates it.
@@ -410,11 +436,11 @@ class TraceFactory:
         if self.trace.has_job(job_id):
             return self.trace.get_job(job_id)
 
-        job = self.session.Job.find(job_id)
+        job = self.__session.Job.find(job_id)
         if not job:
             logging.debug("No job %s in database", job_id)
 
-        self.job_map[str(job_id)] = job
+        self.__job_map[str(job_id)] = job
         start_time = job.start_time
         end_time = job.end_time
         status = job.status
@@ -445,7 +471,7 @@ class TraceFactory:
         Returns the Sample object for the sample ID.
         """
         if sample_id and not sample_id < 0:
-            return self.session.Sample.find(sample_id)
+            return self.__session.Sample.find(sample_id)
 
 
 def get_part_ref(*, collection_id, well):
@@ -515,9 +541,9 @@ class PlanFileVisitor:
 
     def apply(self, key, file_entity):
         if (key.endswith('BEAD_UPLOAD') or key.startswith('BEADS_')):
-            self._add_bead_file(file_entity.id)
+            self.__add_bead_file(file_entity.id)
 
-    def _add_bead_file(self, upload_id):
+    def __add_bead_file(self, upload_id):
         upload_list = self.trace.get_attribute('bead_files')
         if not upload_list:
             upload_list = list()
@@ -539,13 +565,13 @@ class AttributeVisitor(ProvenanceVisitor):
         logging.debug("Getting attributes for %s %s",
                       collection.item_type, collection.item_id)
         item = self.factory.item_map[collection.item_id]
-        self._get_attributes(item.data_associations, collection)
+        self.__get_attributes(item.data_associations, collection)
 
     def visit_item(self, item_entity):
         logging.debug("Getting attributes for %s %s",
                       item_entity.item_type, item_entity.item_id)
         item = self.factory.item_map[item_entity.item_id]
-        self._get_attributes(item.data_associations, item_entity)
+        self.__get_attributes(item.data_associations, item_entity)
 
     def visit_part(self, part_entity):
         logging.debug("Getting attributes for part %s", part_entity.item_id)
@@ -562,19 +588,19 @@ class AttributeVisitor(ProvenanceVisitor):
         logging.debug("Getting attributes for %s %s",
                       part_entity.item_type, part_entity.item_id)
         item = self.factory.item_map[part_entity.item_id]
-        self._get_attributes(item.data_associations, part_entity)
+        self.__get_attributes(item.data_associations, part_entity)
 
     def visit_operation(self, op_activity):
         operation = self.factory.op_map[op_activity.operation_id]
         logging.debug("Getting attributes for operation %s", operation.id)
-        self._get_attributes(operation.data_associations, op_activity)
+        self.__get_attributes(operation.data_associations, op_activity)
 
     def visit_plan(self, trace):
         plan = self.factory.plan
         logging.debug("Getting attributes for plan %s", plan.id)
-        self._get_attributes(plan.data_associations, trace)
+        self.__get_attributes(plan.data_associations, trace)
 
-    def _get_attributes(self, associations, prov_object):
+    def __get_attributes(self, associations, prov_object):
         """
         Gather non-upload associations and attach them as attributes to the
         provenance object.
@@ -601,13 +627,13 @@ class FileProvenanceVisitor(ProvenanceVisitor):
         item = self.factory.item_map[collection.item_id]
         logging.debug("Getting files for %s %s",
                       collection.item_type, collection.item_id)
-        self._get_files(item.data_associations, ItemFileVisitor(collection))
+        self.__get_files(item.data_associations, ItemFileVisitor(collection))
 
     def visit_item(self, item_entity):
         item = self.factory.item_map[item_entity.item_id]
         logging.debug("Getting files for %s %s",
                       item_entity.item_type, item_entity.item_id)
-        self._get_files(item.data_associations, ItemFileVisitor(item_entity))
+        self.__get_files(item.data_associations, ItemFileVisitor(item_entity))
 
     def visit_part(self, part_entity):
         if part_entity.item_id not in self.factory.item_map:
@@ -618,7 +644,7 @@ class FileProvenanceVisitor(ProvenanceVisitor):
         item = self.factory.item_map[part_entity.item_id]
         logging.debug("Getting files for %s %s",
                       part_entity.item_type, part_entity.item_id)
-        self._get_files(item.data_associations, ItemFileVisitor(part_entity))
+        self.__get_files(item.data_associations, ItemFileVisitor(part_entity))
 
     def visit_job(self, job_activity):
         job = self.factory.job_map[job_activity.job_id]
@@ -630,15 +656,15 @@ class FileProvenanceVisitor(ProvenanceVisitor):
         operation = self.factory.op_map[op_activity.operation_id]
         logging.debug("Getting files for operation %s",
                       op_activity.operation_id)
-        self._get_files(operation.data_associations,
-                        OperationFileVisitor(op_activity))
+        self.__get_files(operation.data_associations,
+                         OperationFileVisitor(op_activity))
 
     def visit_plan(self, trace):
         plan = self.factory.plan
         logging.debug("Getting files for plan %s", plan.id)
-        self._get_files(plan.data_associations, PlanFileVisitor(trace))
+        self.__get_files(plan.data_associations, PlanFileVisitor(trace))
 
-    def _get_files(self, associations, visitor):
+    def __get_files(self, associations, visitor):
         """
         Gather file associations, create the provenance file entity and apply
         the visitor to determine how it is handled.
@@ -673,13 +699,13 @@ class JobVisitor(ProvenanceVisitor):
 
     def visit_operation(self, op_activity):
         if op_activity.operation_id not in self.visited:
-            job_activity = self._get_operation_job(op_activity)
+            job_activity = self.__get_operation_job(op_activity)
             if job_activity:
                 self.visited.update([
                     op.operation_id for op in job_activity.operations
                 ])
 
-    def _get_operation_job(self, op_activity):
+    def __get_operation_job(self, op_activity):
         if op_activity.operation_id in self.op_job_map:
             return self.op_job_map[op_activity.operation_id]
 
