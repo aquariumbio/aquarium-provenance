@@ -559,20 +559,20 @@ class PlanFileVisitor:
     of the plan.
     """
 
-    def __init__(self, trace):
-        self.trace = trace
+    def __init__(self, plan_activity):
+        self.plan_activity = plan_activity
 
     def apply(self, key, file_entity):
         if (key.endswith('BEAD_UPLOAD') or key.startswith('BEADS_')):
             self.__add_bead_file(file_entity.id)
 
     def __add_bead_file(self, upload_id):
-        upload_list = self.trace.get_attribute('bead_files')
+        upload_list = self.plan_activity.get_attribute('bead_files')
         if not upload_list:
             upload_list = list()
         if upload_id not in upload_list:
             upload_list.append(upload_id)
-            self.trace.add_attribute({'bead_files': upload_list})
+            self.plan_activity.add_attribute({'bead_files': upload_list})
 
 
 class AttributeVisitor(ProvenanceVisitor):
@@ -619,10 +619,10 @@ class AttributeVisitor(ProvenanceVisitor):
         logging.debug("Getting attributes for operation %s", operation.id)
         self.__get_attributes(operation.data_associations, op_activity)
 
-    def visit_plan(self, trace):
-        for _, plan in self.factory.plan_map.items():
-            logging.debug("Getting attributes for plan %s", plan.id)
-            self.__get_attributes(plan.data_associations, trace)
+    def visit_plan(self, plan_activity):
+        plan = self.factory.plan_map[plan_activity.id]
+        logging.debug("Getting attributes for plan %s", plan.id)
+        self.__get_attributes(plan.data_associations, plan_activity)
 
     def __get_attributes(self, associations, prov_object):
         """
@@ -683,10 +683,10 @@ class FileProvenanceVisitor(ProvenanceVisitor):
         self.__get_files(operation.data_associations,
                          OperationFileVisitor(op_activity))
 
-    def visit_plan(self, trace):
-        for _, plan in self.factory.plan_map.items():
-            logging.debug("Getting files for plan %s", plan.id)
-            self.__get_files(plan.data_associations, PlanFileVisitor(trace))
+    def visit_plan(self, plan_activity):
+        plan = self.factory.plan_map[plan_activity.id]
+        logging.debug("Getting files for plan %s", plan.id)
+        self.__get_files(plan.data_associations, PlanFileVisitor(plan_activity))
 
     def __get_files(self, associations, visitor):
         """

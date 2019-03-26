@@ -663,6 +663,10 @@ class PlanActivity(AttributesMixin):
         for operation in self.__operations:
             operation.plan = self
 
+    @property
+    def id(self):
+        return self.__id
+
     def __eq__(self, other):
         if not isinstance(other, PlanActivity):
             return False
@@ -865,10 +869,12 @@ class ProvenanceTrace(AttributesMixin):
         return True
 
     def apply(self, visitor):
-        visitor.visit_plan(self)
+        visitor.visit_trace(self)
 
     def apply_all(self, visitor):
-        visitor.visit_plan(self)
+        visitor.visit_trace(self)
+        for _, plan in self.__plans.items():
+            visitor.visit_plan(self)
         for _, operation in self.__operations.items():
             operation.apply(visitor)
         for _, item in self.__items.items():
