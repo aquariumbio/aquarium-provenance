@@ -639,6 +639,7 @@ class OperationActivity(AttributesMixin):
         op_dict['operation_type'] = op_type
         op_dict['inputs'] = [arg.as_dict() for arg in self.get_inputs()]
         op_dict['outputs'] = [arg.as_dict() for arg in self.get_outputs()]
+        op_dict['plan_id'] = self.plan.id
         op_dict['start_time'] = self.start_time
         op_dict['end_time'] = self.end_time
         attr_dict = AttributesMixin.as_dict(self)
