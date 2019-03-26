@@ -1313,8 +1313,7 @@ class RunPrepouredGelVisitor(OperationProvenanceVisitor):
 
         logging.debug("Visiting part %s for operation %s",
                       part.item_id, self.name)
-        input_list = part.generator.get_named_inputs('Fragment')
-
+        # input_list = part.generator.get_named_inputs('Fragment')
 
 
 class SortYeastDisplayVisitor(CytometryOperationVisitor):

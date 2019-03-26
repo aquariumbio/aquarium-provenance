@@ -6,6 +6,7 @@ Functions to check whether provenance is well constructed.
 
 # TODO: replace these with visitors
 
+
 def check_operation(trace, operation):
     no_error = True
     for arg in operation.get_inputs():
