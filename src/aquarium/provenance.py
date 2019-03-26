@@ -139,8 +139,9 @@ class AbstractItemEntity(AbstractEntity, AttributesMixin):
         super().__init__()
 
     def __eq__(self, other):
-        return (isinstance(other, AbstractItemEntity)
-                and self.item_id == other.item_id
+        if not isinstance(other, AbstractItemEntity):
+            return False
+        return (self.item_id == other.item_id
                 and AbstractEntity.__eq__(self, other)
                 and AttributesMixin.__eq__(self, other))
 
@@ -187,14 +188,6 @@ class ItemEntity(AbstractItemEntity):
         self.object_type = object_type
         super().__init__(item_id=item_id, item_type='item')
 
-    def __eq__(self, other):
-        if not isinstance(other, ItemEntity):
-            return False
-        if not super().__eq__(other):
-            return False
-        return (self.sample == other.sample
-                and self.object_type == other.object_type)
-
     def apply(self, visitor):
         visitor.visit_item(self)
 
@@ -222,18 +215,10 @@ class CollectionEntity(AbstractItemEntity):
     Defines an entity class for an Aquarium Collection object.
     """
 
-    def __init__(self, collection):
-        self.object_type = collection.object_type
+    def __init__(self, *, item_id, object_type):
+        self.object_type = object_type
         self.part_map = dict()
-        super().__init__(item_id=collection.id, item_type='collection')
-
-    def __eq__(self, other):
-        if not isinstance(other, CollectionEntity):
-            return False
-        if not super().__eq__(other):
-            return False
-        return (self.object_type == other.object_type
-                and self.part_map == other.part_map)
+        super().__init__(item_id=item_id, item_type='collection')
 
     def add_part(self, part):
         self.part_map[part.well] = part
@@ -279,16 +264,6 @@ class PartEntity(AbstractItemEntity):
         self.collection.add_part(self)
         super().__init__(item_id=part_id, item_type='part')
 
-    def __eq__(self, other):
-        if not isinstance(other, PartEntity):
-            return False
-        if not super().__eq__(other):
-            return False
-        return (self.ref == other.ref
-                and self.sample == other.sample
-                and self.object_type == other.object_type
-                and self.collection == other.collection)
-
     @property
     def well(self):
         return self.ref.split('/')[1]
@@ -327,7 +302,7 @@ class FileTypes(Enum):
 
 class AbstractFileEntity(AbstractEntity):
     """
-    An abstract class for file entities. 
+    An abstract class for file entities.
     """
     _id_counter = 0
 
@@ -678,78 +653,118 @@ class OperationActivity(AttributesMixin):
         return False
 
 
-class PlanTrace(AttributesMixin):
+class PlanActivity(AttributesMixin):
 
-    def __init__(self, *, plan_id: str, name: str):
-        self.__plan_id = str(plan_id)
-        self.__plan_name = name
-        self.__operations = dict()
-        self.__jobs = dict()
-        self.__items = dict()
+    def __init__(self, *, id, name, operations, status):
+        self.__id = str(id)
+        self.__name = name
+        self.__operations = operations
+        self.__status = status
+        for operation in self.__operations:
+            operation.plan = self
+
+    def __eq__(self, other):
+        if not isinstance(other, PlanActivity):
+            return False
+        return (self.__id == other.__id
+                and self.__name == other.__name
+                and self.__operations == other.__operations)
+
+    def apply(self, visitor):
+        visitor.visit_plan(self)
+
+    def as_dict(self):
+        plan_dict = dict()
+        plan_dict['plan_id'] = self.__id
+        plan_dict['name'] = self.__name
+        plan_dict['operations'] = [op.operation_id for op in self.__operations]
+        plan_dict['status'] = self.__status
+        return plan_dict
+
+
+class ProvenanceTrace(AttributesMixin):
+
+    def __init__(self, *, experiment_id):
+        self.__experiment_id = experiment_id
         self.__files = dict()
         self.__input_list = defaultdict(list)  # inverted list: item->op
+        self.__items = dict()
+        self.__jobs = dict()
+        self.__operations = dict()
+        self.__plans = dict()
         super().__init__()
 
     def __eq__(self, other):
-        if not isinstance(other, PlanTrace):
+        if not isinstance(other, ProvenanceTrace):
             return False
         if not super().__eq__(other):
             return False
-        return (self.__plan_id == other.plan_id
-                and self.__plan_name == other.plan_name
-                and self.__operations == other.operations
-                and self.__jobs == other.jobs
+        return (self.__files == other.files
+                and self.__input_list == other.__input_list
                 and self.__items == other.items
-                and self.__files == other.files
-                and self.__input_list == other.input_list)
-
-    @property
-    def items(self):
-        return self.__items
+                and self.__jobs == other.jobs
+                and self.__operations == other.operations
+                and self.__plans == other.plans
+                )
 
     @property
     def files(self):
         return self.__files
 
     @property
-    def operations(self):
-        return self.__operations
+    def items(self):
+        return self.__items
 
     @property
     def jobs(self):
         return self.__jobs
 
+    @property
+    def operations(self):
+        return self.__operations
+
+    @property
+    def plans(self):
+        return self.__plans
+
     def add_file(self, file_entity):
         logging.debug("Adding file %s to trace", file_entity.id)
         self.__files[file_entity.id] = file_entity
+
+    def add_input(self, item_id, op_activity):
+        self.__input_list[item_id].append(op_activity)
 
     def add_item(self, item_entity):
         logging.debug("Adding %s %s to trace",
                       item_entity.item_type, item_entity.item_id)
         self.__items[item_entity.item_id] = item_entity
 
-    def add_input(self, item_id, op_activity):
-        self.__input_list[item_id].append(op_activity)
-
-    def add_operation(self, operation):
-        logging.debug("Adding operation %s to trace", operation.operation_id)
-        self.__operations[operation.operation_id] = operation
-
     def add_job(self, job):
         logging.debug("Adding job %s to trace", job.job_id)
         self.__jobs[job.job_id] = job
 
-    def has_job(self, job_id):
-        return bool(job_id) and str(job_id) in self.__jobs
+    def add_operation(self, operation: OperationActivity):
+        logging.debug("Adding operation %s to trace", operation.operation_id)
+        self.__operations[operation.operation_id] = operation
 
-    def has_item(self, item_id):
-        return bool(item_id) and str(item_id) in self.__items
+    def add_plan(self, plan: PlanActivity):
+        logging.debug("Adding plan %s to trace", plan.id)
+        self.__plans[plan.id] = plan
 
     def has_file(self, id):
         return bool(id) and str(id) in self.__files
 
+    def has_item(self, item_id):
+        return bool(item_id) and str(item_id) in self.__items
+
+    def has_job(self, job_id):
+        return bool(job_id) and str(job_id) in self.__jobs
+
     def has_operation(self, operation_id):
         return bool(operation_id) and str(operation_id) in self.__operations
+
+    def has_plan(self, plan_id):
+        return bool(plan_id) and str(plan_id) in self.__plans
 
     def get_collections(self):
         return [item for _, item in self.__items.items()
@@ -817,14 +832,16 @@ class PlanTrace(AttributesMixin):
         An input is determined as items with no source or generator in the plan
         that is not part of another item.
         """
-        return [item for _, item in self.__items.items() if self.is_input(item)]
+        return [
+            item for _, item in self.__items.items() if self.is_input(item)
+        ]
 
     def is_input(self, item):
         """
-        Indicates whether the item is an input to this plan.
+        Indicates whether the item is an input to this trace.
         A non-part item will be an input if it is not generated by an activity
-        in the plan, or if there is no generators, all sources are not in the
-        plan.  A part is never an input.
+        in the trace, or if there are no generators, all sources are not in the
+        trace.  A part is never an input.
         """
         if item.is_part():
             return False
@@ -861,13 +878,13 @@ class PlanTrace(AttributesMixin):
 
     def as_dict(self):
         trace_dict = dict()
-        trace_dict['plan_id'] = self.__plan_id
-        trace_dict['experiment_id'] = self.__plan_id
-        trace_dict['plan_name'] = self.__plan_name
-        trace_dict['plan_inputs'] = [
+        trace_dict['experiment_id'] = self.__experiment_id
+        trace_dict['inputs'] = [
             item.item_id for item in self.get_inputs()]
         trace_dict['operations'] = [op.as_dict()
                                     for _, op in self.__operations.items()]
+        trace_dict['plans'] = [plan.as_dict()
+                               for _, plan in self.__plans.items()]
         trace_dict['jobs'] = [job.as_dict() for _, job in self.__jobs.items()]
         trace_dict['items'] = [item.as_dict()
                                for _, item in self.__items.items()]
