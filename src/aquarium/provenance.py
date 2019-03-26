@@ -567,6 +567,7 @@ class OperationActivity(AttributesMixin):
         self.operation_id = str(id)
         self.operation_type = operation_type
         self.job = None
+        self.plan = None
         self.start_time = start_time
         self.end_time = end_time
         self.inputs = defaultdict(list)
@@ -581,7 +582,6 @@ class OperationActivity(AttributesMixin):
         return (self.type == other.type
                 and self.operation_id == other.operation_id
                 and self.operation_type == other.operation_type
-                and self.job.job_id == other.job.job_id
                 and self.start_time == other.start_time
                 and self.end_time == other.end_time
                 and self.inputs == other.inputs
