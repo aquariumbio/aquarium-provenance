@@ -34,6 +34,7 @@ class TraceFactory:
         self.__item_map = dict()        # item_id -> item
         self.__op_map = dict()          # operation_id -> operation
         self.__job_map = dict()         # job_id -> job
+        self.__plan_map = dict()        # plan_id -> plan
         self.__uploads = dict()         # upload_id -> file_entity
         self.__external_files = dict()  # name -> external_file_entity
         self.__part_map = dict()        # part ref string -> part_entity
@@ -60,10 +61,11 @@ class TraceFactory:
             session=session,
             experiment_id=experiment_id
         )
-        factory.trace.apply(factory.__attribute_visitor)
 
         for plan in plans:
             factory.__add_plan(plan)
+
+        factory.trace.apply(factory.__attribute_visitor)            
 
         # Apply the primary visitor first, the given visitor, and then patch
         primary_visitor = BatchVisitor()
@@ -87,6 +89,10 @@ class TraceFactory:
     @property
     def op_map(self):
         return self.__op_map
+
+    @property
+    def plan_map(self):
+        return self.__plan_map
 
     @property
     def job_map(self):
@@ -272,6 +278,7 @@ class TraceFactory:
         Adds the operations for the plan along with input/output items of
         the operation.
         """
+        self.__plan_map[plan.id] = plan
         operations = list()
         for operation in plan.operations:
             op_activity = self.__add_operation(operation)
@@ -613,9 +620,9 @@ class AttributeVisitor(ProvenanceVisitor):
         self.__get_attributes(operation.data_associations, op_activity)
 
     def visit_plan(self, trace):
-        plan = self.factory.plan
-        logging.debug("Getting attributes for plan %s", plan.id)
-        self.__get_attributes(plan.data_associations, trace)
+        for _, plan in self.factory.plan_map.items():
+            logging.debug("Getting attributes for plan %s", plan.id)
+            self.__get_attributes(plan.data_associations, trace)
 
     def __get_attributes(self, associations, prov_object):
         """
@@ -677,9 +684,9 @@ class FileProvenanceVisitor(ProvenanceVisitor):
                          OperationFileVisitor(op_activity))
 
     def visit_plan(self, trace):
-        plan = self.factory.plan
-        logging.debug("Getting files for plan %s", plan.id)
-        self.__get_files(plan.data_associations, PlanFileVisitor(trace))
+        for _, plan in self.factory.plan_map.items():
+            logging.debug("Getting files for plan %s", plan.id)
+            self.__get_files(plan.data_associations, PlanFileVisitor(trace))
 
     def __get_files(self, associations, visitor):
         """
