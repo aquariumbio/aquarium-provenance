@@ -746,7 +746,7 @@ class JobVisitor(ProvenanceVisitor):
             logging.error("Operation %s has no completed jobs", operation.id)
             return None
 
-        job_activity = self.factory._get_job(job.id)
+        job_activity = self.factory.__get_job(job.id)
         if job_activity:
             for op in job_activity.operations:
                 self.op_job_map[op.operation_id] = job_activity
