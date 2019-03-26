@@ -7,7 +7,7 @@ from aquarium.provenance import (
     JobActivity,
     OperationActivity,
     PartEntity,
-    PlanTrace
+    ProvenanceTrace
 )
 
 
@@ -41,7 +41,7 @@ class ProvenanceVisitor(abc.ABC):
     def visit_part(self, part: PartEntity):
         return
 
-    def visit_plan(self, plan: PlanTrace):
+    def visit_plan(self, plan: ProvenanceTrace):
         return
 
 
@@ -95,4 +95,3 @@ class BatchVisitor(ProvenanceVisitor):
     def visit_operation(self, operation):
         for visitor in self.visitors:
             operation.apply(visitor)
-

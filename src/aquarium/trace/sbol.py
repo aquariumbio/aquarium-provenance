@@ -1,5 +1,5 @@
 from aquarium.provenance import (
-    PlanTrace, ItemEntity, JobActivity, OperationActivity)
+    ProvenanceTrace, ItemEntity, JobActivity, OperationActivity)
 from aquarium.trace.visitor import ProvenanceVisitor
 from sbol import (
     Activity, ComponentDefinition, Document, setHomespace)
@@ -8,8 +8,8 @@ from typing import Union
 
 class SBOLVisitor(ProvenanceVisitor):
     """
-    A visitor to convert aquarium.provenance.PlanTrace to an SBOL Document
-    object containing item and operation linkages.
+    A visitor to convert aquarium.provenance.ProvenanceTrace to an SBOL
+    Document object containing item and operation linkages.
 
     Apply the visitor to a trace and then access the `doc` property.
 
@@ -18,8 +18,8 @@ class SBOLVisitor(ProvenanceVisitor):
     """
     # TODO: decide whether prefixes need to be customized
 
-    def __init__(self, *, namespace: str, trace: PlanTrace = None):
-        # TODO: is it sufficient for homespace to be set only for document init?
+    def __init__(self, *, namespace: str, trace: ProvenanceTrace = None):
+        # TODO: is it sufficient for homespace to be set at document init?
         setHomespace(namespace)
         self.doc = Document()
         super().__init__(trace)

@@ -1,6 +1,6 @@
 import pytest
 from aquarium.provenance import (
-    ItemEntity, OperationActivity, OperationInput, PlanTrace)
+    ItemEntity, OperationActivity, OperationInput, ProvenanceTrace)
 
 
 def create_operation(id):
@@ -19,7 +19,7 @@ def create_input(item):
 @pytest.fixture(scope="module")
 def simple_plan():
 
-    plan = PlanTrace(plan_id="simple", name="simple test plan")
+    plan = ProvenanceTrace(experiment_id="simple")
     op_activity = create_operation("op1")
     item = create_item("item1")
     plan.add_item(item)
@@ -29,7 +29,7 @@ def simple_plan():
     return plan
 
 
-class TestPlanTrace:
+class TestProvenanceTrace:
 
     def test_simple_plan(self, simple_plan):
         """

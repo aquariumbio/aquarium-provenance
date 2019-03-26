@@ -5,13 +5,14 @@ import os
 
 from aquarium.provenance import (FileEntity, FileTypes,
                                  JobActivity, OperationActivity,
-                                 PlanTrace)
+                                 ProvenanceTrace)
 from typing import List, Union
 
 
 class UploadManager:
 
-    def __init__(self, *, trace: PlanTrace, basepath=None, bucket=None, s3=None):
+    def __init__(self, *,
+                 trace: ProvenanceTrace, basepath=None, bucket=None, s3=None):
         self.trace = trace
         self.basepath = None
         self.bucket = None
@@ -110,7 +111,7 @@ class UploadManager:
             Key=key_path
         )
 
-    def _put_provenance(self, *, path, trace: PlanTrace):
+    def _put_provenance(self, *, path, trace: ProvenanceTrace):
         self._put_object(
             path=path,
             filename='provenance_dump.json',

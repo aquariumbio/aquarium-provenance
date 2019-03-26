@@ -4,7 +4,7 @@ from aquarium.provenance import (
     ItemEntity,
     OperationActivity,
     PartEntity,
-    PlanTrace
+    ProvenanceTrace
 )
 from aquarium.trace.visitor import ProvenanceVisitor
 
@@ -14,7 +14,7 @@ Functions to check whether provenance is well constructed.
 
 
 class CheckVisitor(ProvenanceVisitor):
-    def __init__(self, *, trace: PlanTrace = None, stop_list):
+    def __init__(self, *, trace: ProvenanceTrace = None, stop_list):
         self.__no_error = True
         self.__stop_list = stop_list
         super().__init__(trace)
