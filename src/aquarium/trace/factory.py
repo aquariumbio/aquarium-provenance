@@ -65,7 +65,7 @@ class TraceFactory:
         for plan in plans:
             factory.__add_plan(plan)
 
-        factory.trace.apply(factory.__attribute_visitor)            
+        factory.trace.apply(factory.__attribute_visitor)
 
         # Apply the primary visitor first, the given visitor, and then patch
         primary_visitor = BatchVisitor()
@@ -135,7 +135,7 @@ class TraceFactory:
             logging.error("No job in upload %s", upload_id)
             return None
 
-        file_job = self.__get_job(upload.job.id)
+        file_job = self.get_job(upload.job.id)
         if not file_job:
             logging.debug("Job %s of file upload %s is not in plan",
                           upload.job.id, upload_id)
@@ -440,7 +440,7 @@ class TraceFactory:
                                           arg.routing_id, operation.id)
                     arg.item.add_generator(op_activity)
 
-    def __get_job(self, job_id):
+    def get_job(self, job_id):
         """
         Returns the job activity for the operation.
         If the activity is not currently in the trace, creates it.
@@ -686,7 +686,8 @@ class FileProvenanceVisitor(ProvenanceVisitor):
     def visit_plan(self, plan_activity):
         plan = self.factory.plan_map[plan_activity.id]
         logging.debug("Getting files for plan %s", plan.id)
-        self.__get_files(plan.data_associations, PlanFileVisitor(plan_activity))
+        self.__get_files(plan.data_associations,
+                         PlanFileVisitor(plan_activity))
 
     def __get_files(self, associations, visitor):
         """
@@ -746,7 +747,7 @@ class JobVisitor(ProvenanceVisitor):
             logging.error("Operation %s has no completed jobs", operation.id)
             return None
 
-        job_activity = self.factory.__get_job(job.id)
+        job_activity = self.factory.get_job(job.id)
         if job_activity:
             for op in job_activity.operations:
                 self.op_job_map[op.operation_id] = job_activity
