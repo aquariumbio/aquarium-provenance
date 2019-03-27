@@ -438,8 +438,15 @@ class TraceFactory:
                         else:
                             logging.debug("Unmatched routing %s for %s",
                                           arg.routing_id, operation.id)
+                    logging.debug("Adding generator %s to %s %s",
+                                  op_activity.operation_id,
+                                  arg.item.item_type, arg.item.item_id)
                     arg.item.add_generator(op_activity)
                     if arg.is_part():
+                        logging.debug(
+                            "Adding generator job %s to collection %s",
+                            op_activity.job.job_id,
+                            arg.item.collection.item_id)
                         arg.item.collection.add_generator(op_activity.job)
 
     def get_job(self, job_id):
