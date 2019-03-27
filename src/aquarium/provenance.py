@@ -879,7 +879,7 @@ class ProvenanceTrace(AttributesMixin):
     def apply_all(self, visitor):
         visitor.visit_trace(self)
         for _, plan in self.__plans.items():
-            visitor.visit_plan(self)
+            visitor.visit_plan(plan)
         for _, operation in self.__operations.items():
             operation.apply(visitor)
         for _, item in self.__items.items():
