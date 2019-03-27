@@ -13,7 +13,7 @@ class SBOLVisitor(ProvenanceVisitor):
 
     Apply the visitor to a trace and then access the `doc` property.
 
-    Does not currently handle jobs as generators, or files generated as 
+    Does not currently handle jobs as generators, or files generated as
     measurements.
     """
     # TODO: decide whether prefixes need to be customized
