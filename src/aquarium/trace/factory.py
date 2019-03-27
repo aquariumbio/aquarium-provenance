@@ -9,7 +9,7 @@ from aquarium.provenance import (
     FileEntity,
     JobActivity,
     OperationActivity,
-    OperationInput,
+    OperationItemPin,
     OperationParameter,
     PartEntity,
     PlanActivity,
@@ -360,7 +360,7 @@ class TraceFactory:
 
     def __create_argument(self, field_value, operation_id):
         """
-        Creates an OperationArgument object for the given FieldValue.
+        Creates an OperationPin object for the given FieldValue.
 
         For an input, adds the object to the OperationActivity as an input, and
         if it represents an Item adds it to the input inverted list.
@@ -396,7 +396,7 @@ class TraceFactory:
             logging.debug("Creating arg object for %s %s with routing %s",
                           field_value.name, item_id, routing_id)
 
-        return OperationInput(
+        return OperationItemPin(
             name=field_value.name,
             field_value_id=field_value.id,
             item_entity=item_entity,
@@ -439,6 +439,8 @@ class TraceFactory:
                             logging.debug("Unmatched routing %s for %s",
                                           arg.routing_id, operation.id)
                     arg.item.add_generator(op_activity)
+                    if arg.is_part():
+                        arg.item.collection.add_generator(op_activity.job)
 
     def get_job(self, job_id):
         """

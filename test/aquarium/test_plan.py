@@ -1,6 +1,6 @@
 import pytest
 from aquarium.provenance import (
-    ItemEntity, OperationActivity, OperationInput, ProvenanceTrace)
+    ItemEntity, OperationActivity, OperationItemPin, ProvenanceTrace)
 
 
 def create_operation(id):
@@ -12,8 +12,8 @@ def create_item(id):
 
 
 def create_input(item):
-    return OperationInput(name="InArg#{item.item_id}", field_value_id=1,
-                          item_entity=item)
+    return OperationItemPin(name="InArg#{item.item_id}", field_value_id=1,
+                            item_entity=item)
 
 
 @pytest.fixture(scope="module")

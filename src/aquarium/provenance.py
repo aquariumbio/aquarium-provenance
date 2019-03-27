@@ -438,10 +438,11 @@ class MissingEntity(AbstractEntity):
         return True
 
 
-class OperationArgument(abc.ABC):
+class OperationPin(abc.ABC):
     """
-    Models an argument to an operation, which can be either a
-    (though use it to capture output during trace conversion)
+    Models an input/output pin of an operation.
+
+    Extended by subclasses OperationParameter and OperationItemPin.
     """
 
     @abc.abstractmethod
@@ -450,7 +451,7 @@ class OperationArgument(abc.ABC):
         self.field_value_id = str(field_value_id)
 
     def __eq__(self, other):
-        if not isinstance(other, OperationArgument):
+        if not isinstance(other, OperationPin):
             return False
         return (self.name == other.name
                 and self.field_value_id == other.field_value_id)
@@ -469,7 +470,7 @@ class OperationArgument(abc.ABC):
         return arg_dict
 
 
-class OperationParameter(OperationArgument):
+class OperationParameter(OperationPin):
 
     def __init__(self, *, name: str, field_value_id: str, value):
         self.value = value
@@ -488,7 +489,7 @@ class OperationParameter(OperationArgument):
         return arg_dict
 
 
-class OperationInput(OperationArgument):
+class OperationItemPin(OperationPin):
 
     def __init__(self, *, name, field_value_id, item_entity, routing_id=None):
         self.item_id = item_entity.item_id
@@ -497,13 +498,16 @@ class OperationInput(OperationArgument):
         super().__init__(name=name, field_value_id=field_value_id)
 
     def __eq__(self, other):
-        if not isinstance(other, OperationInput):
+        if not isinstance(other, OperationItemPin):
             return False
         if not super().__eq__(other):
             return False
         return (self.item_id == other.item_id
                 and self.item == other.item
                 and self.routing_id == other.routing_id)
+
+    def is_part(self):
+        return self.item.is_part()
 
     def is_item(self):
         return True
@@ -590,10 +594,10 @@ class OperationActivity(AttributesMixin):
     def apply(self, visitor):
         visitor.visit_operation(self)
 
-    def add_input(self, input: OperationArgument):
+    def add_input(self, input: OperationPin):
         self.inputs[input.name].append(input)
 
-    def add_output(self, output: OperationArgument):
+    def add_output(self, output: OperationPin):
         self.outputs[output.name].append(output)
 
     def has_input(self, item_entity: ItemEntity):
