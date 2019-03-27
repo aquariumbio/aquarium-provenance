@@ -720,7 +720,7 @@ class ItemVisitor(ProvenanceVisitor):
         routing_id = None
         if field_value.field_type:
             routing_id = field_value.field_type.routing
-            msg = "Field type %s role %s array %s routing %s op %s"
+            msg = "Field type: %s, role: %s, array: %s, routing: %s, op: %s"
             logging.debug(msg, field_value.field_type.name,
                           field_value.field_type.role,
                           field_value.field_type.array,
