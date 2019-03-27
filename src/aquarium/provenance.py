@@ -814,6 +814,11 @@ class ProvenanceTrace(AttributesMixin):
         else:
             return [op for _, op in self.__operations.items()]
 
+    def get_plan(self, plan_id):
+        plan_key = str(plan_id)
+        if plan_key in self.__plans:
+            return self.__plans[plan_key]
+
     def get_file(self, id):
         """
         Returns the file with the file id in this trace.
