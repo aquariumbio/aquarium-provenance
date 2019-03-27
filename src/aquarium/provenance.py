@@ -113,7 +113,7 @@ class AbstractEntity(abc.ABC):
         if self.generator:
             generator_dict = dict()
             if self.generator.is_job():
-                generator_dict = self.generator.as_dict()
+                generator_dict['job_id'] = self.generator.job_id
             else:  # is operation
                 generator_dict['operation_id'] = self.generator.operation_id
             entity_dict['generated_by'] = generator_dict
