@@ -667,6 +667,7 @@ class PlanActivity(AttributesMixin):
         self.__status = status
         for operation in self.__operations:
             operation.plan = self
+        super().__init__()
 
     @property
     def id(self):
