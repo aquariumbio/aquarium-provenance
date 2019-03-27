@@ -63,16 +63,12 @@ class TraceFactory:
         )
 
         for plan in plans:
-            factory.__add_plan(plan)
+            factory.get_plan(plan)
 
-        factory.trace.apply(factory.__attribute_visitor)
-
-        # Apply the primary visitor first, the given visitor, and then patch
-        primary_visitor = BatchVisitor()
-        primary_visitor.add_visitor(JobVisitor())
-        primary_visitor.add_visitor(AddPartsVisitor())
-        primary_visitor.add_visitor(FileProvenanceVisitor())
-        factory.__apply(primary_visitor)
+        factory.__apply(JobVisitor())
+        factory.__apply(ItemVisitor())
+        factory.__apply(AddPartsVisitor())
+        factory.__apply(FileProvenanceVisitor())
 
         if visitor:
             factory.__apply(visitor)
@@ -247,6 +243,9 @@ class TraceFactory:
         Returns the operation activity for the operation.
         If the activity is not currently in the trace, creates it.
         """
+        if str(operation.id) not in self.op_map:
+            self.__op_map[str(operation.id)] = operation
+
         logging.debug("Getting operation %s", operation.id)
         if self.trace.has_operation(operation.id):
             return self.trace.get_operation(operation.id)
@@ -259,36 +258,36 @@ class TraceFactory:
         op_activity.apply(self.__attribute_visitor)
         return op_activity
 
-    def get_sample(self, sample_id: int):
+    def get_plan(self, plan) -> PlanActivity:
         """
-        Returns the Sample object for the sample ID.
+        Returns the plan activity for the plan.
+        If the activity is not currently in the trace, creates it.
         """
-        if sample_id and not sample_id < 0:
-            return self.__session.Sample.find(sample_id)
+        if str(plan.id) not in self.plan_map:
+            self.plan_map[str(plan.id)] = plan
 
-    def __add_operation(self, operation):
-        """
-        Adds an activity for the given operation.
-        """
-        self.__op_map[str(operation.id)] = operation
-        return self.get_operation(operation)
+        logging.debug("Getting plan %s", plan.id)
+        if self.trace.has_plan(plan.id):
+            return self.trace.get_plan(plan.id)
 
-    def __add_plan(self, plan):
-        """
-        Adds the operations for the plan along with input/output items of
-        the operation.
-        """
-        self.__plan_map[plan.id] = plan
         operations = list()
         for operation in plan.operations:
-            op_activity = self.__add_operation(operation)
-            self.__gather_io_items(op_activity)
+            op_activity = self.get_operation(operation)
             operations.append(op_activity)
         plan_activity = PlanActivity(id=plan.id,
                                      name=plan.name,
                                      operations=operations,
                                      status=plan.status)
         self.trace.add_plan(plan_activity)
+        plan_activity.apply(self.__attribute_visitor)
+        return plan_activity
+
+    def get_sample(self, sample_id: int):
+        """
+        Returns the Sample object for the sample ID.
+        """
+        if sample_id and not sample_id < 0:
+            return self.__session.Sample.find(sample_id)
 
     def __apply(self, visitor):
         """
@@ -358,97 +357,6 @@ class TraceFactory:
                           sample=part.sample,
                           object_type=part.object_type)
 
-    def __create_argument(self, field_value, operation_id):
-        """
-        Creates an OperationPin object for the given FieldValue.
-
-        For an input, adds the object to the OperationActivity as an input, and
-        if it represents an Item adds it to the input inverted list.
-        For an output Item, adds the OperationActivity as the generator.
-        """
-        item_id = field_value.child_item_id
-        if not item_id:
-            return OperationParameter(
-                name=field_value.name,
-                field_value_id=field_value.id,
-                value=field_value.value)
-
-        item_entity = self.get_item(item_id=item_id)
-        if item_entity is None:
-            logging.error("No item %s found for input %s",
-                          item_id, field_value.name)
-            return None
-
-        if field_value.row is not None and field_value.column is not None:
-            logging.debug("Input is a part %s[%s,%s]",
-                          item_id, field_value.row, field_value.column)
-            item_entity = self.get_part(collection=item_entity,
-                                        row=field_value.row,
-                                        column=field_value.column)
-            if item_entity is None:
-                logging.error("No part %s[%s,%s] found for input %s",
-                              item_id, field_value.row, field_value.column,
-                              field_value.name)
-                return None
-
-        routing_id = self.__get_routing_id(field_value, operation_id)
-        if routing_id:
-            logging.debug("Creating arg object for %s %s with routing %s",
-                          field_value.name, item_id, routing_id)
-
-        return OperationItemPin(
-            name=field_value.name,
-            field_value_id=field_value.id,
-            item_entity=item_entity,
-            routing_id=routing_id
-        )
-
-    def __gather_io_items(self, op_activity):
-        """
-        Visits field values of the given OperationActivity to identify
-        operation arguments and outputs.
-
-        Adds input items and parameters to the to the operation.
-        Sets the operation as the generator for outputs, and adds sources to
-        outputs when indicated by routing.
-        """
-        operation = self.__op_map[op_activity.operation_id]
-        logging.debug("Getting I/O for operation %s", operation.id)
-        field_values = sorted(operation.field_values, key=lambda fv: fv.role)
-        routing_map = RoutingMap()
-        for field_value in field_values:
-            arg = self.__create_argument(field_value, operation.id)
-            if arg is None:
-                continue
-
-            if is_input(field_value):
-                op_activity.add_input(arg)
-
-            if arg.is_item():
-                if is_input(field_value):
-                    routing_map.add(arg)
-                    self.trace.add_input(arg.item_id, op_activity)
-                elif is_output(field_value):
-                    op_activity.add_output(arg)
-                    if arg.routing_id:
-                        if arg.routing_id in routing_map:
-                            for input_item in routing_map.get(arg.routing_id):
-                                if arg.item.item_id != input_item.item_id:
-                                    arg.item.add_source(input_item)
-                        else:
-                            logging.debug("Unmatched routing %s for %s",
-                                          arg.routing_id, operation.id)
-                    logging.debug("Adding generator %s to %s %s",
-                                  op_activity.operation_id,
-                                  arg.item.item_type, arg.item.item_id)
-                    arg.item.add_generator(op_activity)
-                    if arg.is_part():
-                        logging.debug(
-                            "Adding generator job %s to collection %s",
-                            op_activity.job.job_id,
-                            arg.item.collection.item_id)
-                        arg.item.collection.add_generator(op_activity.job)
-
     def get_job(self, job_id):
         """
         Returns the job activity for the operation.
@@ -486,24 +394,6 @@ class TraceFactory:
                                    status=status)
         self.trace.add_job(job_activity)
         return job_activity
-
-    def __get_routing_id(self, field_value, operation_id):
-        """
-        Returns the routing ID from the field values, None if there is no ID.
-        """
-        routing_id = None
-        if field_value.field_type:
-            routing_id = field_value.field_type.routing
-            msg = "Field type %s role %s array %s routing %s op %s"
-            logging.debug(msg, field_value.field_type.name,
-                          field_value.field_type.role,
-                          field_value.field_type.array,
-                          field_value.field_type.routing,
-                          operation_id)
-        else:
-            logging.debug("No field type for %s of %s",
-                          field_value.name, operation_id)
-        return routing_id
 
 
 def get_part_ref(*, collection_id, well):
@@ -723,6 +613,123 @@ class FileProvenanceVisitor(ProvenanceVisitor):
                 file_entity = self.factory.get_file(upload_id=upload_id)
                 if file_entity:
                     visitor.apply(association.key, file_entity)
+
+
+class ItemVisitor(ProvenanceVisitor):
+    def __init__(self):
+        super().__init__()
+
+    def visit_operation(self, op_activity: OperationActivity):
+        self.__gather_io_items(op_activity)
+
+    def __gather_io_items(self, op_activity):
+        """
+        Visits field values of the given OperationActivity to identify
+        operation arguments and outputs.
+
+        Adds input items and parameters to the to the operation.
+        Sets the operation as the generator for outputs, and adds sources to
+        outputs when indicated by routing.
+        """
+        operation = self.factory.op_map[op_activity.operation_id]
+        logging.debug("Getting I/O for operation %s", operation.id)
+        field_values = sorted(operation.field_values, key=lambda fv: fv.role)
+        routing_map = RoutingMap()
+        for field_value in field_values:
+            arg = self.__create_argument(field_value, operation.id)
+            if arg is None:
+                continue
+
+            if is_input(field_value):
+                op_activity.add_input(arg)
+
+            if arg.is_item():
+                if is_input(field_value):
+                    routing_map.add(arg)
+                    self.trace.add_input(arg.item_id, op_activity)
+                elif is_output(field_value):
+                    op_activity.add_output(arg)
+                    if arg.routing_id:
+                        if arg.routing_id in routing_map:
+                            for input_item in routing_map.get(arg.routing_id):
+                                if arg.item.item_id != input_item.item_id:
+                                    arg.item.add_source(input_item)
+                        else:
+                            logging.debug("Unmatched routing %s for %s",
+                                          arg.routing_id, operation.id)
+                    logging.debug("Adding generator %s to %s %s",
+                                  op_activity.operation_id,
+                                  arg.item.item_type, arg.item.item_id)
+                    arg.item.add_generator(op_activity)
+                    if arg.is_part():
+                        logging.debug(
+                            "Adding generator job %s to collection %s",
+                            op_activity.job.job_id,
+                            arg.item.collection.item_id)
+                        arg.item.collection.add_generator(op_activity.job)
+
+    def __create_argument(self, field_value, operation_id):
+        """
+        Creates an OperationPin object for the given FieldValue.
+
+        For an input, adds the object to the OperationActivity as an input, and
+        if it represents an Item adds it to the input inverted list.
+        For an output Item, adds the OperationActivity as the generator.
+        """
+        item_id = field_value.child_item_id
+        if not item_id:
+            return OperationParameter(
+                name=field_value.name,
+                field_value_id=field_value.id,
+                value=field_value.value)
+
+        item_entity = self.factory.get_item(item_id=item_id)
+        if item_entity is None:
+            logging.error("No item %s found for input %s",
+                          item_id, field_value.name)
+            return None
+
+        if field_value.row is not None and field_value.column is not None:
+            logging.debug("Input is a part %s[%s,%s]",
+                          item_id, field_value.row, field_value.column)
+            item_entity = self.factory.get_part(collection=item_entity,
+                                                row=field_value.row,
+                                                column=field_value.column)
+            if item_entity is None:
+                logging.error("No part %s[%s,%s] found for input %s",
+                              item_id, field_value.row, field_value.column,
+                              field_value.name)
+                return None
+
+        routing_id = self.__get_routing_id(field_value, operation_id)
+        if routing_id:
+            logging.debug("Creating arg object for %s %s with routing %s",
+                          field_value.name, item_id, routing_id)
+
+        return OperationItemPin(
+            name=field_value.name,
+            field_value_id=field_value.id,
+            item_entity=item_entity,
+            routing_id=routing_id
+        )
+
+    def __get_routing_id(self, field_value, operation_id):
+        """
+        Returns the routing ID from the field values, None if there is no ID.
+        """
+        routing_id = None
+        if field_value.field_type:
+            routing_id = field_value.field_type.routing
+            msg = "Field type %s role %s array %s routing %s op %s"
+            logging.debug(msg, field_value.field_type.name,
+                          field_value.field_type.role,
+                          field_value.field_type.array,
+                          field_value.field_type.routing,
+                          operation_id)
+        else:
+            logging.debug("No field type for %s of %s",
+                          field_value.name, operation_id)
+        return routing_id
 
 
 class JobVisitor(ProvenanceVisitor):
