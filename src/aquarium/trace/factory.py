@@ -13,8 +13,9 @@ from aquarium.provenance import (
     OperationParameter,
     PartEntity,
     PlanActivity,
-    ProvenanceTrace)
-from aquarium.trace.visitor import BatchVisitor, ProvenanceVisitor
+    ProvenanceTrace
+)
+from aquarium.trace.visitor import ProvenanceVisitor
 from aquarium.trace.part_visitor import AddPartsVisitor
 from aquarium.trace.patch import create_patch_visitor
 from util.plate import well_coordinates, coordinates_for
