@@ -73,7 +73,9 @@ The following conventions are required for the factory to automatically collect 
 
    So, for measurement data, the item should be the item measured.
    With collections this means that the protocol should associate the data to the collection if the measurement is of the whole collection.
-   Otherwise, associate the data to the part that was measured.individual parts, .
+   Otherwise, associate the data to the part that was measured.individual parts.
+
+   Files that capture information about an operation, should only be association with the operation.
 
 4. Associations to items will be captured as attributes.
 
