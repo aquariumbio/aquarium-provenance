@@ -156,7 +156,7 @@ class MeasurementVisitor(OperationProvenanceVisitor):
     aria_path = 'facsaria_sorp/P65011000073/cytometer_configuration.json'
     synergy_path = 'synergy_ht/216503/03132018/platereader_configuration.json'
     facs_aria_channels = ['FSC-A', 'SSC-A', 'FITC-A', 'PE-Texas Red-A']
-    accuri_channels = ['FL1-A', 'FL4-A', 'FSC-A', 'SSC-A']
+    accuri_channels = ['FL1-A', 'FL2-A', 'FL4-A', 'FSC-A', 'SSC-A']
 
     @classmethod
     def accuri_url(cls):
