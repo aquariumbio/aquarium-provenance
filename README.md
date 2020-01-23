@@ -56,28 +56,70 @@ resources = {
 
 The following conventions are required for the factory to automatically collect provenance:
 
-1. An item will be included if it is an input or output to an operation type.
-   Items that are internally generated cannot be discovered without a heuristic
-   fix using a visitor (see below).
+1. All tracked items should be an input or output of an operation type.
+   An internally generated item cannot be discovered without a heuristic fix (see below).
 
 2. All items should have identified source items.
 
-   Routing in the Operation Type definition is sufficient, but should be only
-   used if the sample types match.
-   Routing may be one-to-many, so include routing on all outputs.
-   Otherwise, you'll need to use the provenance conventions implemented in the 
-   UW BIOFAB standard libraries.
+   - If the sample types match, indicate routing in the operation type definition.
+     Routing may be one-to-many, so include routing on all outputs.
+   - For parts of a collection or other outputs, use the `PartProvenance` module in the [UW BIOFAB standard libraries](https://github.com/klavinslab/standard-libraries) to indicate sources.
+     This protocol illustrates using the library to indicate the provenance of mixing two inputs.
 
-3. A data file should be **only** associated with the operation that generated
-   it, and the item to which it corresponds.
+     ```ruby
+     # frozen_string_literal: true
 
-   So, for measurement data, the item should be the item measured.
-   With collections this means that the protocol should associate the data to the collection if the measurement is of the whole collection.
-   Otherwise, associate the data to the part that was measured.individual parts.
+     needs 'Standard Libs/AssociationManagement'
 
-   Files that capture information about an operation, should only be association with the operation.
+     class Protocol
+        include AssociationManagement
+        include PartProvenance
 
-4. Associations to items will be captured as attributes.
+        def mix(first:, second:, mix_output:)
+          one_associations = AssociationMap.new(first)
+          two_associations = AssociationMap.new(second)
+          mix_associations = AssociationMap.new(mix_output)
+
+          show do
+            title 'Mix stuff'
+          end
+
+          add_provenance(
+            from: first, from_map: one_associations,
+            to: mix_output, to_map: mix_associations
+          )
+          add_provenance(
+            from: second, from_map: two_associations,
+            to: mix_output, to_map: mix_associations
+          )
+          one_associations.save
+          two_associations.save
+          mix_associations.save
+        end
+
+        def main
+          operations.retrieve.make
+          operations.each do |operation|
+            mix(first: operation.input('one').item,
+                second: operation.input('two').item,
+                mix_output: operation.output('mix').item)
+          end
+          operations.store
+        end
+      end
+     ```
+
+3. Only associate a data file with the operation that generated it and the item to which it corresponds.
+
+   For a measurement, only associate the file with the measured item.
+   For a collection, this means that the protocol should associate the data to
+   the collection if the measurement is of the whole collection.
+   Otherwise, associate the data to the part that was measured.
+
+   Files that capture information about an operation should only be associated
+   with the operation.
+
+4. A descriptive attribute of an item should be associated to the item allowing it to be captured by the provenance script.
 
 ## Heuristic Fixes
 
