@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='aquarium-provenance,
+    name='aquarium-provenance',
     package_dir={'': 'src'},
     packages=find_packages('src'),
     install_requires=[
