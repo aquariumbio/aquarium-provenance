@@ -1,11 +1,11 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='sample-dump',
+    name='aquarium-provenance,
     package_dir={'': 'src'},
     packages=find_packages('src'),
     install_requires=[
-        'pydent',
+        'pydent==0.0.35',
         'boto3',
         'pySBOL'
     ]
