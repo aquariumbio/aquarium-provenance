@@ -3,24 +3,8 @@ services:
   test:
     build:
       context: .
-      target: basebuilder
+      target: provtest-base
     command: ["pytest"]
     volumes:
       - ./src:/app/
       - ./test:/app/test
-  
-  trace:
-    build:
-      context: .
-      target: basebuilder
-    entrypoint: ['python3', 'trace.py']
-    volumes:
-      - ./src:/app/
-
-  transfer:
-    build:
-      context: .
-      target: basebuilder
-    entrypoint: ['python3', 'transfer.py']
-    volumes:
-      - ./src:/app/
