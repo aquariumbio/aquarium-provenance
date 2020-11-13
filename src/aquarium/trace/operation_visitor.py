@@ -38,7 +38,7 @@ class ChallengeProblemTraceVisitor(ProvenanceVisitor):
         self.challenge_problem = challenge_problem
         self.experiment_reference = experiment_reference
         super().__init__(trace)
-
+i 
     def visit_trace(self, trace: ProvenanceTrace):
         self._add_attribute(
             trace=trace,
@@ -61,6 +61,25 @@ class ChallengeProblemTraceVisitor(ProvenanceVisitor):
             logging.warning("Adding \'%s\' trace attribute", attribute_name)
             trace.add_attribute({attribute_name: value})
 
+class AquariumInstanceTraceVisitor(ProvenanceVisitor):
+
+    def __init__(self, *,
+                 trace: ProvenanceTrace = None,
+                 aq_instance):
+        self.aq_instance = aq_instance
+        super().__init__(trace)
+i 
+    def visit_trace(self, trace: ProvenanceTrace):
+        self._add_attribute(
+            trace=trace,
+            attribute_name='aquarium_instance',
+            value=self.aq_instance
+        )
+
+    def _add_attribute(self, *, trace, attribute_name: str, value: str):
+        if not trace.has_attribute(attribute_name):
+            logging.warning("Adding \'%s\' trace attribute", attribute_name)
+            trace.add_attribute({attribute_name: value})
 
 class OperationProvenanceVisitor(ProvenanceVisitor):
     @abc.abstractmethod
