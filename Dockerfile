@@ -1,7 +1,7 @@
-from python:3.8 as provtest-base
+FROM python:3.9 AS provtest-base
 
 # add pytest
-RUN pip3 install --no-cache-dir pytest
+RUN pip3 install --no-cache-dir pytest==6.1.2
 
 # create directories within container
 RUN mkdir -p /app/src
